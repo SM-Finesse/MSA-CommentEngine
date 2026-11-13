@@ -1,0 +1,10 @@
+// 슬롯 모듈 — 본체와 칩이 같이 보는 약속만 둔다. 로직 없음 (팩 리더의 형식 검사만 예외)
+apply plugin: 'java-library'
+
+dependencies {
+    api 'org.springframework:spring-web'              // 엔진 계약 인터페이스의 경로 애너테이션
+    api 'tools.jackson.core:jackson-databind'         // 팩 JSON 읽기 (Jackson 3)
+
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}

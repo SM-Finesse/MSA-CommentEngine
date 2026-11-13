@@ -1,0 +1,35 @@
+{
+  "delta_app": {
+    "label": "블록당 공격력",
+    "decimals": 2,
+    "phrases": {
+      "high": "상대 대비 블록당 공격력에서 뚜렷하게 앞섭니다",
+      "low": "상대 대비 블록당 공격력에서 뚜렷하게 밀립니다",
+      "normal_pos": "상대 대비 블록당 공격력에서 앞서는 편입니다",
+      "normal_neg": "상대 대비 블록당 공격력에서 밀리는 편입니다",
+      "zero": "상대 대비 블록당 공격력은 같은 수준입니다"
+    }
+  },
+  "delta_opener": {
+    "label": "Opener 성향",
+    "decimals": 2,
+    "phrases": {
+      "high": "상대 대비 Opener 성향이 뚜렷하게 짙습니다",
+      "low": "상대 대비 Opener 성향이 뚜렷하게 옅습니다",
+      "normal_pos": "상대 대비 Opener 성향이 짙은 편입니다",
+      "normal_neg": "상대 대비 Opener 성향이 옅은 편입니다",
+      "zero": "상대 대비 Opener 성향은 같은 수준입니다"
+    }
+  },
+  "delta_cheese_index": {
+    "label": "가비지 처리 성향",
+    "decimals": 1,
+    "phrases": {
+      "high": "상대 대비 가비지 처리 성향이 뚜렷하게 짙습니다",
+      "low": "상대 대비 가비지 처리 성향이 뚜렷하게 옅습니다",
+      "normal_pos": "상대 대비 가비지 처리 성향이 짙은 편입니다",
+      "normal_neg": "상대 대비 가비지 처리 성향이 옅은 편입니다",
+      "zero": "상대 대비 가비지 처리 성향은 같은 수준입니다"
+    }
+  }
+}
