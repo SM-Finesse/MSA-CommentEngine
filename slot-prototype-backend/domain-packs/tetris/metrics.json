@@ -1,0 +1,15 @@
+{
+  "_comment": "label = llm-server app/names.py COMMENT_NAMES, normal_range = config/light_quartiles.json(10/14, train 498), decimals = app/fallback.py _nd. legacy 팩이라 phrases는 비워 둠(문장은 llm-server가 만듦). tr_trend_delta 라벨은 임시.",
+  "delta_opener":       { "label": "Opener 성향",              "decimals": 2, "normal_range": { "q1": -0.249, "q3": 0.171 },  "reference": "opponent" },
+  "delta_plonk":        { "label": "Plonk 성향",               "decimals": 2, "normal_range": { "q1": -0.122, "q3": 0.119 },  "reference": "opponent" },
+  "delta_stride":       { "label": "Stride 성향",              "decimals": 2, "normal_range": { "q1": -0.162, "q3": 0.189 },  "reference": "opponent" },
+  "delta_inf_ds":       { "label": "Infinite Downstack 성향",  "decimals": 2, "normal_range": { "q1": -0.157, "q3": 0.255 },  "reference": "opponent" },
+  "delta_app":          { "label": "블록당 공격력",            "decimals": 2, "normal_range": { "q1": -0.043, "q3": 0.024 },  "reference": "opponent" },
+  "delta_weighted_app": { "label": "보정 공격 효율",           "decimals": 2, "normal_range": { "q1": -0.026, "q3": 0.026 },  "reference": "opponent" },
+  "delta_vs_apm":       { "label": "수비 비중",                "decimals": 2, "normal_range": { "q1": -0.100, "q3": 0.138 },  "reference": "opponent" },
+  "delta_cheese_index": { "label": "가비지 처리 성향",         "decimals": 1, "normal_range": { "q1": -7.949, "q3": 13.852 }, "reference": "opponent" },
+  "strength_split":     { "label": "상대 강도별 승률",         "decimals": 2, "normal_range": { "q1": -0.395, "q3": -0.139 }, "reference": "self" },
+  "delta_comeback":     { "label": "역전승·역전패 경향",       "decimals": 2, "normal_range": { "q1": -0.046, "q3": 0.050 },  "reference": "self" },
+  "session_vs_slope":   { "label": "라운드별 공방 능력 변화",  "decimals": 2, "normal_range": { "q1": -0.080, "q3": 1.370 },  "reference": "self" },
+  "tr_trend_delta":     { "label": "TR 추세",                  "decimals": 2, "normal_range": null,                           "reference": "self" }
+}

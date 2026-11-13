@@ -1,0 +1,10 @@
+{
+  "spec_version": "0",
+  "id": "demo",
+  "version": "0.0.1",
+  "lang": "ko",
+  "generation": { "mode": "template" },
+  "light": { "candidates": ["metric_a", "metric_b"], "pick": 1 },
+  "sections": [ { "id": "overview", "metrics": ["metric_a", "metric_b"] } ],
+  "no_data": "설명할 값이 아직 충분하지 않습니다."
+}

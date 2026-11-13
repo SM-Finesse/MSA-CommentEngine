@@ -1,0 +1,24 @@
+{
+  "spec_version": "0",
+  "id": "tetris",
+  "version": "2026.11",
+  "lang": "ko",
+  "generation": { "mode": "legacy" },
+  "light": {
+    "candidates": ["delta_opener", "delta_plonk", "delta_stride", "delta_inf_ds", "delta_app",
+                   "delta_weighted_app", "delta_vs_apm", "delta_cheese_index",
+                   "strength_split", "delta_comeback", "session_vs_slope"],
+    "pick": 3
+  },
+  "sections": [
+    { "id": "tr_trend",         "metrics": ["tr_trend_delta"] },
+    { "id": "playstyle",        "metrics": ["delta_opener", "delta_plonk", "delta_stride", "delta_inf_ds"] },
+    { "id": "attack",           "metrics": ["delta_app", "delta_weighted_app"] },
+    { "id": "defense",          "metrics": ["delta_vs_apm", "delta_cheese_index"] },
+    { "id": "strength_split",   "metrics": ["strength_split"] },
+    { "id": "comeback_rate",    "metrics": [] },
+    { "id": "session_vs_slope", "metrics": ["session_vs_slope"] },
+    { "id": "rivals",           "metrics": [] }
+  ],
+  "no_data": "이 챕터를 설명할 값이 아직 충분하지 않습니다."
+}

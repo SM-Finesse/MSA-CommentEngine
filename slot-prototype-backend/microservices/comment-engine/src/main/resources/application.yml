@@ -1,0 +1,33 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: comment-engine
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
+engine:
+  version: 0.1.0
+  packs-dir: domain-packs        # 프로젝트 루트 기준. docker라면 /packs (./domain-packs:/packs:ro)
+
+  # legacy 방식(B안) — 지금 llm-server로 칸 이름만 바꿔 넘긴다.
+  # llm-server 쪽 경로 · 칸 이름은 엔진 코드가 아니라 여기에 둔다.
+  legacy:
+    # 실제 LLM 서버 주소는 이 파일에 쓰지 말고 환경변수로: ENGINE_LEGACY_SERVERS=http://주소1:포트,http://주소2:포트
+    # 기본값은 tools/MockLlmServer.java (java tools\MockLlmServer.java 로 9000번에 띄움)
+    servers: ${ENGINE_LEGACY_SERVERS:http://localhost:9000}
+    sentence-path: /v1/light/sentence
+    summary-path: /v1/light/summary
+    section-path: /v1/comment/heavy-chapter
+    section-field: chapter_id
+    section-text-field: footnote
+    zone-labels:
+      high: 높음
+      normal: 보통
+      low: 낮음
+    # 시간 값은 백엔드 application.yml llm.light-comment 기준
+    connect-timeout: 2s
+    call-timeout: 10s
+    min-remaining: 10s
+    retry-after: 5s

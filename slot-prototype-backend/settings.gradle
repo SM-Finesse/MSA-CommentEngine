@@ -1,0 +1,6 @@
+rootProject.name = 'finesse-slot-prototype'
+
+// 슬롯 = 계약(api) + 칩 규격(api/pack). 본체 = comment-engine, 칩 쪽 호출자 = finesse-api
+include 'api'
+include 'microservices:comment-engine'
+include 'microservices:finesse-api'

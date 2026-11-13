@@ -1,0 +1,19 @@
+// 본체 — 엔진 계약(CommentEngineService)을 구현한다. 분야를 모른다.
+plugins {
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+}
+
+dependencies {
+    implementation project(':api')
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// 팩 폴더(domain-packs)를 프로젝트 루트 기준으로 찾게
+tasks.named('bootRun') {
+    workingDir = rootProject.projectDir
+}
