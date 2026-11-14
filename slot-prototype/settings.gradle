@@ -1,8 +1,0 @@
-plugins {
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
-}
-
-rootProject.name = 'slot-prototype'
-
-include 'api'                          // 슬롯: 약속 3개 (엔진 계약 · 팩 규격 · 생성 서버 규약)
-include 'microservices:comment-engine' // 본체
