@@ -8,6 +8,7 @@
 | 넘기는 경로 | `/v1/comments/**`, `/v1/domains` → comment-engine |
 | 경로 규칙 위치 | `config-repo/gateway.yml` |
 | 엔진 주소 | `app.engine-url` (기본 `http://localhost:7001`) |
+| 주소 기억 시간 | `app.dns-cache-seconds` 5초. 엔진이 새 IP로 다시 떠도 5초 안에 따라감 (`DnsCacheConfiguration`) |
 
 아직 없는 것: 헬스체크 모음(`HealthCheckConfiguration`).
 
