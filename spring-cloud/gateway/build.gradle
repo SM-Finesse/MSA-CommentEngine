@@ -1,0 +1,22 @@
+// 본체의 입구. 수업 레포 spring-cloud/gateway 에서 인증과 HTTPS를 뺀 것
+apply plugin: 'org.springframework.boot'
+
+ext {
+    springCloudVersion = '2025.1.4'
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.cloud:spring-cloud-starter-gateway-server-webflux'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+// bootRun · test 작업 폴더 = 이 모듈 폴더. 설정은 ../../config-repo 에서 읽는다 (compose에서는 /config-repo)

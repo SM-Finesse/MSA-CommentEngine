@@ -1,18 +1,14 @@
 name: build-test
 
-# 슬롯(api) · 본체(comment-engine) · 칩 쪽 서비스(finesse-api)의 빌드와 시험. PR과 main 푸시에서 돈다.
+# 슬롯(api) · 본체(comment-engine, gateway) · 칩 쪽 서비스(finesse-api)의 빌드와 시험. PR과 main 푸시에서 돈다.
 on:
   pull_request:
     paths-ignore:
       - '**.md'
-      - 'spring-cloud/**'
-      - 'config-repo/**'
   push:
     branches: [main]
     paths-ignore:
       - '**.md'
-      - 'spring-cloud/**'
-      - 'config-repo/**'
 
 permissions:
   contents: read
