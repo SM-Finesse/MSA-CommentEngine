@@ -176,7 +176,7 @@ docker compose restart comment-engine
 | `finesse-api` | `FinesseApiTest` (3개) | 가짜 엔진을 세우고 계약대로 부르는지, 응답 모양과 에러 코드 변환 |
 | `gateway` | `GatewayRoutingTests` (4개) | 엔진 경로 3개가 넘어가는지, 규칙 밖 경로는 404 |
 
-PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-test`).
+PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-test`의 `test` 작업). `compose` 작업은 docker compose로 본체를 띄운 뒤 gateway 경유 호출, 추적, 칩 꽂기·뽑기(`e2e/plug-test.sh`), 엔진 IP가 바뀌었을 때(`e2e/engine-ip-change.sh`)를 확인합니다.
 
 ## 만들다가 발견한 것 (확정안에 반영 필요)
 

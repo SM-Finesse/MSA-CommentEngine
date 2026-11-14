@@ -4,6 +4,10 @@ spring.application.name: gateway
 # 엔진 주소. 엔진 포트가 바뀌면 이 줄만 고친다
 app.engine-url: http://localhost:7001
 
+# 서비스 이름의 IP를 기억하는 최대 시간(초). Docker DNS는 600초를 알려 주는데, 그대로 따르면
+# 엔진 컨테이너가 새 IP로 다시 뜬 뒤 최대 10분 동안 옛 IP로 보내 500이 난다 (DnsCacheConfiguration)
+app.dns-cache-seconds: 5
+
 spring.cloud.gateway.server.webflux:
   httpclient:
     connect-timeout: 3000
