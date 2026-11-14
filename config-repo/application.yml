@@ -1,9 +1,14 @@
 # 모든 서비스가 같이 읽는 설정 (수업 config-repo/application.yml 에서 rabbitmq · kafka · auth-server 를 뺀 것)
 
-# 관리 포트를 서비스 포트와 나눈다. 헬스체크는 :4004/actuator/health
-management.server.port: 4004
 management.endpoint.health.show-details: "ALWAYS"
 management.endpoints.web.exposure.include: "health,info"
 
 server.shutdown: graceful
 spring.lifecycle.timeout-per-shutdown-phase: 10s
+
+---
+spring.config.activate.on-profile: docker
+
+# 컨테이너 안에서는 관리 포트를 서비스 포트와 나눈다. 헬스체크는 :4004/actuator/health
+# (로컬에서는 여러 서비스를 한 PC에 띄우므로 나누지 않는다. 서비스 포트의 /actuator/health)
+management.server.port: 4004

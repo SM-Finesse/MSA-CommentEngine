@@ -1,0 +1,63 @@
+# 본체를 한 번에 띄운다: gateway → comment-engine → 생성 서버(small-gen)
+#
+#   ./gradlew build -x test
+#   docker compose up -d --build
+#   curl http://localhost:8080/v1/domains
+#
+# 밖으로 여는 포트는 gateway의 8080 하나다.
+
+x-healthcheck: &healthcheck
+  # eclipse-temurin:25-jre 에는 wget · curl 이 없어 bash 의 /dev/tcp 로 관리 포트(4004)를 부른다
+  test:
+    - CMD
+    - bash
+    - -c
+    - >-
+      exec 3<>/dev/tcp/localhost/4004 &&
+      printf 'GET /actuator/health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+      grep -q '"status":"UP"' <&3
+  interval: 5s
+  timeout: 3s
+  retries: 30
+  start_period: 10s
+
+services:
+  gateway:
+    build: spring-cloud/gateway
+    image: msa-comment-engine/gateway
+    mem_limit: 512m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CONFIG_LOCATION=file:/config-repo/application.yml,file:/config-repo/gateway.yml
+    volumes:
+      - ./config-repo:/config-repo:ro
+    ports:
+      - "8080:8080"
+    healthcheck: *healthcheck
+    depends_on:
+      comment-engine:
+        condition: service_healthy
+
+  comment-engine:
+    build: microservices/comment-engine
+    image: msa-comment-engine/comment-engine
+    mem_limit: 512m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      # 엔진 자체 설정은 아직 jar 안에 있다. 공통 설정만 config-repo에서 덧붙인다
+      - SPRING_CONFIG_ADDITIONAL_LOCATION=file:/config-repo/application.yml
+      - PACKS_DIR=/packs
+      # tetris 칩의 생성 서버 주소. 실제 llm-server로 바꾸려면 이 줄만 고친다 (쉼표로 여러 대)
+      - FINESSE_PACK_TETRIS_SERVERS=http://small-gen:9200
+    volumes:
+      - ./config-repo:/config-repo:ro
+      - ./domain-packs:/packs:ro     # 칩은 이미지에 굽지 않고 꽂는다
+    healthcheck: *healthcheck
+
+  # 시연용 작은 생성 서버. tetris 칩의 llm-server 자리
+  small-gen:
+    image: eclipse-temurin:25-jdk
+    mem_limit: 256m
+    command: ["java", "/app/SmallGenServer.java", "9200"]
+    volumes:
+      - ./small-gen:/app:ro

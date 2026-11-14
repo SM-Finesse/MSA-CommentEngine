@@ -48,3 +48,44 @@ jobs:
           name: test-report
           path: '**/build/reports/tests/test'
           if-no-files-found: ignore
+
+  compose:
+    # jar를 만들고 docker compose로 본체를 띄운 뒤 gateway(8080)를 거쳐 불러 본다
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: jar 만들기
+        run: bash ./gradlew build -x test --console=plain
+
+      - name: 띄우기
+        run: docker compose up -d --build --wait --wait-timeout 180
+
+      - name: gateway 경유 호출
+        run: |
+          set -e
+          call() { echo "== $1"; shift; curl -sS -f -w '\n[HTTP %{http_code}]\n' "$@"; }
+          call "팩 목록" http://localhost:8080/v1/domains | tee /tmp/domains.txt
+          grep -q '"id":"demo"' /tmp/domains.txt
+          grep -q '"id":"tetris"' /tmp/domains.txt
+          call "demo 칩 (template)" -H 'Content-Type: application/json' http://localhost:8080/v1/comments/light \
+            -d '{"domain":"demo","items":[{"metric":"metric_a","value":0.31,"zone":"high"}],"deadline_ms":35000}' | tee /tmp/demo.txt
+          grep -q '"fallback":false' /tmp/demo.txt
+          call "tetris 칩 (server, small-gen)" -H 'Content-Type: application/json' http://localhost:8080/v1/comments/light \
+            -d '{"domain":"tetris","items":[{"metric":"delta_app","value":0.05,"zone":"high"}],"deadline_ms":35000}' | tee /tmp/tetris.txt
+          grep -q 'small-gen' /tmp/tetris.txt
+          echo "== 규칙 밖 경로는 404"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/nope)" = "404"
+
+      - name: 상태와 로그
+        if: always()
+        run: |
+          docker compose ps
+          docker compose logs --no-color --tail 80
+
