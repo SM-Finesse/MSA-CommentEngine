@@ -1,0 +1,9 @@
+# 모든 서비스가 같이 읽는 설정 (수업 config-repo/application.yml 에서 rabbitmq · kafka · auth-server 를 뺀 것)
+
+# 관리 포트를 서비스 포트와 나눈다. 헬스체크는 :4004/actuator/health
+management.server.port: 4004
+management.endpoint.health.show-details: "ALWAYS"
+management.endpoints.web.exposure.include: "health,info"
+
+server.shutdown: graceful
+spring.lifecycle.timeout-per-shutdown-phase: 10s
