@@ -4,7 +4,7 @@
 #   docker compose up -d --build
 #   curl http://localhost:8080/v1/domains
 #
-# 밖으로 여는 포트는 gateway의 8080 하나다.
+# 밖으로 여는 포트는 gateway의 8080과 추적 화면(Zipkin)의 9411이다.
 
 x-healthcheck: &healthcheck
   # eclipse-temurin:25-jre 에는 wget · curl 이 없어 bash 의 /dev/tcp 로 관리 포트(4004)를 부른다
@@ -37,6 +37,8 @@ services:
     depends_on:
       comment-engine:
         condition: service_healthy
+      zipkin:
+        condition: service_started
 
   comment-engine:
     build: microservices/comment-engine
@@ -53,6 +55,18 @@ services:
       - ./config-repo:/config-repo:ro
       - ./domain-packs:/packs:ro     # 칩은 이미지에 굽지 않고 꽂는다
     healthcheck: *healthcheck
+    depends_on:
+      zipkin:
+        condition: service_started
+
+  # 추적 화면. gateway → comment-engine 요청이 한 줄로 이어져 보인다
+  zipkin:
+    image: openzipkin/zipkin:3.5.0
+    mem_limit: 1024m
+    environment:
+      - STORAGE_TYPE=mem
+    ports:
+      - "9411:9411"
 
   # 시연용 작은 생성 서버. tetris 칩의 llm-server 자리
   small-gen:

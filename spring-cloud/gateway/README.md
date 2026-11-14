@@ -9,7 +9,7 @@
 | 경로 규칙 위치 | `config-repo/gateway.yml` |
 | 엔진 주소 | `app.engine-url` (기본 `http://localhost:7001`) |
 
-아직 없는 것: 헬스체크 모음(`HealthCheckConfiguration`), 추적.
+아직 없는 것: 헬스체크 모음(`HealthCheckConfiguration`).
 
 ## 빌드와 시험
 
