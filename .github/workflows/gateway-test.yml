@@ -1,0 +1,40 @@
+name: gateway-test
+
+# gateway 모듈의 빌드와 시험. PR과 main 푸시에서 돈다.
+on:
+  pull_request:
+    paths:
+      - 'spring-cloud/gateway/**'
+      - 'config-repo/**'
+      - '.github/workflows/gateway-test.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'spring-cloud/gateway/**'
+      - 'config-repo/**'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      # 프로토타입이 한 벌로 합쳐지기 전이라 slot-prototype 의 Gradle을 빌려 쓴다
+      - name: gateway test
+        run: bash ./slot-prototype/gradlew -p spring-cloud/gateway test --console=plain
+
+      - name: 시험 결과 올리기
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-test-report
+          path: spring-cloud/gateway/build/reports/tests/test
+          if-no-files-found: ignore
