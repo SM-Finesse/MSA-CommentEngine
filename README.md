@@ -4,7 +4,7 @@
 
 작업 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 봐 주세요.
 
-> 프로토타입 단계입니다. gateway, tetris-analytics, docker compose는 아직 없습니다.
+> 프로토타입 단계입니다. tetris-analytics, docker compose는 아직 없습니다.
 > 슬롯의 기준 문서는 「MSA 슬롯 구현 확정안」입니다 (레포에는 아직 없음).
 
 ## 무엇이 어디에 있나
@@ -23,6 +23,8 @@
 │       ├── TemplateGenerator      phrases로 문장 조립 (template 모드 + 대체 문장)
 │       ├── ServerGenerator        라운드로빈 · 30초 제외 · 재시도 · 마감
 │       └── GenerationProtocol     ③ 어댑터. metric→stat, high→높음 같은 변환은 여기 한 곳
+├── spring-cloud/gateway/                 ← 본체의 입구 (포트 8080). 경로 규칙은 config-repo/gateway.yml
+├── config-repo/                          ← 설정 (공통 application.yml + 서비스별 yml)
 ├── microservices/finesse-api/            ← 칩 쪽 조합 서비스 (포트 8092). 엔진 계약으로 본체를 부른다
 │   └── com/finesse/composite/
 │       ├── LightCommentDemoController   하이라이트 판정 결과를 받아 엔진을 부르고 화면 모양으로 바꿈
@@ -95,6 +97,7 @@ curl.exe -s -H "Content-Type: application/json" http://localhost:8092/api/v1/com
 | `comment-engine` | `GenServerDownTest` (1개) | 생성 서버가 전부 꺼지면 그 칩만 503, 다른 칩은 정상 |
 | `comment-engine` | `PackRegistryTest` (1개) | 잘못된 팩이 있으면 시작 실패 |
 | `finesse-api` | `FinesseApiTest` (3개) | 가짜 엔진을 세우고 계약대로 부르는지, 응답 모양과 에러 코드 변환 |
+| `gateway` | `GatewayRoutingTests` (4개) | 엔진 경로 3개가 넘어가는지, 규칙 밖 경로는 404 |
 
 PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-test`).
 

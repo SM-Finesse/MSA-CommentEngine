@@ -46,6 +46,4 @@
 
 | 워크플로 | 도는 때 | 내용 |
 |---|---|---|
-| `gateway-test` | `spring-cloud/gateway`, `config-repo`를 바꾼 PR | gateway 빌드와 시험 |
-
-모듈이 늘어나면 이 표에 추가합니다.
+| `build-test` | 모든 PR (문서만 바꾼 경우 제외) | 전체 모듈 빌드와 시험 |

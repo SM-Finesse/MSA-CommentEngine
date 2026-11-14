@@ -1,24 +1,8 @@
-plugins {
-    id 'org.springframework.boot' version '4.1.1'
-    id 'io.spring.dependency-management' version '1.1.7'
-    id 'java'
-}
-
-group = 'com.finesse'
-version = '0.1.0'
-
-java {
-    toolchain { languageVersion = JavaLanguageVersion.of(25) }
-}
-
-repositories { mavenCentral() }
+// 본체의 입구. 수업 레포 spring-cloud/gateway 에서 인증과 HTTPS를 뺀 것
+apply plugin: 'org.springframework.boot'
 
 ext {
     springCloudVersion = '2025.1.4'
-}
-
-jar {
-    enabled = false
 }
 
 dependencies {
@@ -33,10 +17,6 @@ dependencyManagement {
     imports {
         mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
     }
-}
-
-tasks.named('test') {
-    useJUnitPlatform()
 }
 
 // bootRun · test 작업 폴더 = 이 모듈 폴더. 설정은 ../../config-repo 에서 읽는다 (compose에서는 /config-repo)

@@ -13,18 +13,18 @@
 
 ## 빌드와 시험
 
-프로토타입이 한 벌로 합쳐지기 전이라 `slot-prototype`의 Gradle을 빌려 씁니다. 레포 루트에서 실행합니다.
+레포 루트에서 실행합니다.
 
 ```bash
-./slot-prototype/gradlew -p spring-cloud/gateway test
+./gradlew :spring-cloud:gateway:test
 ```
 
 ## 실행
 
-엔진을 먼저 띄운 뒤(`slot-prototype/README.md` 참고) 레포 루트에서 실행합니다.
+엔진을 먼저 띄운 뒤(루트 `README.md` 참고) 레포 루트에서 실행합니다.
 
 ```bash
-./slot-prototype/gradlew -p spring-cloud/gateway bootRun
+./gradlew :spring-cloud:gateway:bootRun
 ```
 
 ```bash

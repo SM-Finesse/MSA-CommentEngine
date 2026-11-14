@@ -1,7 +1,0 @@
-plugins {
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
-}
-
-// 프로토타입 두 벌이 한 벌로 합쳐지기 전까지 gateway는 혼자 빌드된다.
-// 합친 뒤에는 이 파일을 지우고 루트 settings.gradle에 include ':spring-cloud:gateway' 한 줄을 넣는다.
-rootProject.name = 'gateway'
