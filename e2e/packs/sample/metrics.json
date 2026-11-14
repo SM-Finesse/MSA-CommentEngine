@@ -1,0 +1,13 @@
+{
+  "score": {
+    "label": "점수",
+    "decimals": 1,
+    "phrases": {
+      "high": "점수가 높습니다",
+      "low": "점수가 낮습니다",
+      "normal_pos": "점수가 조금 높습니다",
+      "normal_neg": "점수가 조금 낮습니다",
+      "zero": "점수는 변화가 없습니다"
+    }
+  }
+}
