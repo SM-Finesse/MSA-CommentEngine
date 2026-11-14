@@ -108,21 +108,8 @@ jobs:
       - name: 칩 꽂기·뽑기 (본체 5단계)
         run: bash e2e/plug-test.sh
 
-      - name: 엔진 컨테이너를 새로 만든 뒤에도 gateway가 엔진을 찾는지
-        # 엔진 이미지를 바꿔 배포하면 컨테이너가 새로 만들어지고 IP가 바뀔 수 있다
-        run: |
-          ip() { docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$(docker compose ps -q comment-engine)"; }
-          before=$(ip)
-          docker compose up -d --no-deps --force-recreate --wait --wait-timeout 120 comment-engine
-          echo "엔진 IP: $before -> $(ip)"
-          for i in $(seq 1 15); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/v1/domains || true)
-            echo "try $i: HTTP $code"
-            [ "$code" = 200 ] && exit 0
-            sleep 2
-          done
-          docker compose logs --no-color --tail 30 gateway
-          exit 1
+      - name: 엔진 IP가 바뀌어도 gateway가 엔진을 찾는지
+        run: bash e2e/engine-ip-change.sh
 
       - name: 상태와 로그
         if: always()
