@@ -1,0 +1,9 @@
+{
+  "spec_version": "0",
+  "id": "sample",
+  "version": "0.0.1",
+  "lang": "ko",
+  "generation": { "mode": "server", "servers": ["http://sample-gen:9300"] },
+  "sections": ["overview"],
+  "no_data": "설명할 값이 아직 충분하지 않습니다."
+}

@@ -71,7 +71,7 @@ curl.exe -s -H "Content-Type: application/json" http://localhost:8092/api/v1/com
 
 ## docker compose로 한 번에 띄우기
 
-gateway, comment-engine, small-gen을 같이 띄웁니다. 밖으로 여는 포트는 gateway의 8080 하나입니다.
+gateway, comment-engine, small-gen, zipkin을 같이 띄웁니다. 밖으로 여는 포트는 gateway의 8080과 추적 화면(Zipkin)의 9411입니다.
 
 ```bash
 ./gradlew build -x test
@@ -92,6 +92,59 @@ docker compose down
 ```
 
 칩(`domain-packs`)과 설정(`config-repo`)은 이미지에 굽지 않고 폴더째 꽂습니다. 팩이나 설정을 바꾸면 이미지를 다시 만들지 않고 `docker compose restart`만 하면 됩니다.
+
+## 새 칩 꽂아 보기 (본체 5단계 확인)
+
+본체 코드를 한 줄도 고치지 않고 칩을 꽂고 뽑을 수 있는지 확인합니다. `e2e/packs/sample/`은 이 확인에만 쓰는 시험용 칩이고, 실제 칩이 아닙니다.
+
+docker compose로 본체를 띄운 상태에서 레포 루트에서 실행합니다.
+
+```bash
+bash e2e/plug-test.sh
+```
+
+| 순서 | 하는 일 | 확인하는 것 |
+|---|---|---|
+| 1 | 꽂기 전에 sample 칩을 부름 | 404 `UNKNOWN_DOMAIN` |
+| 2 | sample 칩 전용 생성 서버(small-gen, 9300)를 하나 더 띄움 | 칩마다 서버 하나 (C안) |
+| 3 | `e2e/packs/sample`을 `domain-packs/`에 복사하고 엔진만 재시작 | 이미지 재빌드 없음 |
+| 4 | gateway 경유로 sample, tetris, demo를 부름 | sample은 9300의 문장, tetris는 9200의 문장, demo는 phrases 문장 |
+| 5 | `git status`로 본체·슬롯 코드 확인 | 바뀐 곳은 `domain-packs/sample/`뿐 |
+| 6 | 칩과 생성 서버를 치우고 엔진 재시작 | 다시 404 |
+
+PR마다 GitHub에서 같은 확인이 자동으로 돕니다. Windows에서는 돌려보지 않았습니다.
+
+손으로 해 볼 때 (PowerShell, 확인 안 함). 꽂기:
+
+```powershell
+docker compose run -d --name sample-gen small-gen java /app/SmallGenServer.java 9300
+```
+
+```powershell
+Copy-Item -Recurse e2e\packs\sample domain-packs\sample
+```
+
+```powershell
+docker compose restart comment-engine
+```
+
+```powershell
+curl.exe -s -H "Content-Type: application/json" --data-binary "@e2e/sample-light.json" http://localhost:8080/v1/comments/light
+```
+
+뽑기:
+
+```powershell
+docker rm -f sample-gen
+```
+
+```powershell
+Remove-Item -Recurse domain-packs\sample
+```
+
+```powershell
+docker compose restart comment-engine
+```
 
 ## 느껴 볼 것 6가지
 
