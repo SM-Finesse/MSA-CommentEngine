@@ -13,6 +13,12 @@ engine:
   exclude-seconds: 30       # 연결 실패 서버 제외 시간
   max-attempts: 3
 
+# 로컬에서는 Zipkin이 없으므로 추적 기록을 만들지 않는다. compose에서는 config-repo의 docker 프로필이 1.0으로 덮어쓴다
+management:
+  tracing:
+    sampling:
+      probability: 0.0
+
 logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} %-5level %-18logger{0} %msg%n"

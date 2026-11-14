@@ -85,6 +85,8 @@ docker compose up -d --build
 curl http://localhost:8080/v1/domains
 ```
 
+추적 화면은 http://localhost:9411 입니다. gateway → comment-engine 요청이 한 줄로 이어져 보입니다.
+
 ```bash
 docker compose down
 ```
