@@ -1,7 +1,7 @@
 server.port: 8080
 spring.application.name: gateway
 
-# 엔진 주소. 프로토타입 두 벌이 합쳐진 뒤 포트가 바뀌면 이 줄만 고친다 (지금은 slot-prototype 의 7001)
+# 엔진 주소. 엔진 포트가 바뀌면 이 줄만 고친다
 app.engine-url: http://localhost:7001
 
 spring.cloud.gateway.server.webflux:

@@ -1,6 +1,11 @@
 // 본체의 입구. 수업 레포 spring-cloud/gateway 에서 인증과 HTTPS를 뺀 것
 apply plugin: 'org.springframework.boot'
 
+// Dockerfile이 build/libs/*.jar 하나만 집도록 일반 jar는 만들지 않는다 (수업 레포와 같음)
+jar {
+    enabled = false
+}
+
 ext {
     springCloudVersion = '2025.1.4'
 }

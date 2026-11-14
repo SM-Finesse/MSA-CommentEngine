@@ -4,7 +4,7 @@
 
 작업 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 봐 주세요.
 
-> 프로토타입 단계입니다. tetris-analytics, docker compose는 아직 없습니다.
+> 프로토타입 단계입니다. tetris-analytics는 아직 없습니다.
 > 슬롯의 기준 문서는 「MSA 슬롯 구현 확정안」입니다 (레포에는 아직 없음).
 
 ## 무엇이 어디에 있나
@@ -68,6 +68,28 @@ $env:FINESSE_PACK_TETRIS_SERVERS = "http://localhost:9200"
 ```powershell
 curl.exe -s -H "Content-Type: application/json" http://localhost:8092/api/v1/comment-demo/light -d '{\"domain\":\"demo\",\"highlights\":[{\"stat\":\"metric_a\",\"value\":0.31,\"zone\":\"high\"}]}'
 ```
+
+## docker compose로 한 번에 띄우기
+
+gateway, comment-engine, small-gen을 같이 띄웁니다. 밖으로 여는 포트는 gateway의 8080 하나입니다.
+
+```bash
+./gradlew build -x test
+```
+
+```bash
+docker compose up -d --build
+```
+
+```bash
+curl http://localhost:8080/v1/domains
+```
+
+```bash
+docker compose down
+```
+
+칩(`domain-packs`)과 설정(`config-repo`)은 이미지에 굽지 않고 폴더째 꽂습니다. 팩이나 설정을 바꾸면 이미지를 다시 만들지 않고 `docker compose restart`만 하면 됩니다.
 
 ## 느껴 볼 것 6가지
 

@@ -1,8 +1,14 @@
 apply plugin: 'org.springframework.boot'
 
+// Dockerfile이 build/libs/*.jar 하나만 집도록 일반 jar는 만들지 않는다 (수업 레포와 같음)
+jar {
+    enabled = false
+}
+
 dependencies {
     implementation project(':api')
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'   // 헬스체크 (/actuator/health)
 
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

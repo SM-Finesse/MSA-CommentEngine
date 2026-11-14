@@ -4,12 +4,12 @@
 
 | 항목 | 값 |
 |---|---|
-| 포트 | 8080 (관리 포트 4004) |
+| 포트 | 8080 (컨테이너 안에서는 관리 포트 4004를 따로 씀) |
 | 넘기는 경로 | `/v1/comments/**`, `/v1/domains` → comment-engine |
 | 경로 규칙 위치 | `config-repo/gateway.yml` |
 | 엔진 주소 | `app.engine-url` (기본 `http://localhost:7001`) |
 
-아직 없는 것: Dockerfile, compose, 헬스체크 모음(`HealthCheckConfiguration`), 추적. 엔진에 Actuator가 들어온 뒤에 넣습니다.
+아직 없는 것: 헬스체크 모음(`HealthCheckConfiguration`), 추적.
 
 ## 빌드와 시험
 
