@@ -125,6 +125,9 @@ jobs:
       - name: 엔진 IP가 바뀌어도 gateway가 엔진을 찾는지
         run: bash e2e/engine-ip-change.sh
 
+      - name: 회로 차단기 열림·닫힘 (finesse-api → 엔진)
+        run: bash e2e/circuit-breaker.sh
+
       - name: 상태와 로그
         if: always()
         run: |

@@ -46,4 +46,4 @@
 
 | 워크플로 | 도는 때 | 내용 |
 |---|---|---|
-| `build-test` | 모든 PR (문서만 바꾼 경우 제외) | `test`: 전체 모듈 시험. `compose`: docker compose로 띄워 gateway 경유 호출, 추적, 칩 꽂기·뽑기, 엔진 IP 변경 |
+| `build-test` | 모든 PR (문서만 바꾼 경우 제외) | `test`: 전체 모듈 시험. `compose`: docker compose로 띄워 gateway 경유 호출, 추적, 칩 꽂기·뽑기, 엔진 IP 변경, 회로 차단기 열림·닫힘 |

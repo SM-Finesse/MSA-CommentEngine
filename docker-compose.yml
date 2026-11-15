@@ -10,13 +10,14 @@
 
 x-healthcheck: &healthcheck
   # eclipse-temurin:25-jre 에는 wget · curl 이 없어 bash 의 /dev/tcp 로 관리 포트(4004)를 부른다
+  # readiness 는 "이 서비스가 요청을 받을 준비가 됐나"만 본다. 엔진이 죽어 finesse-api 의 회로가 열려도 finesse-api 컨테이너는 정상
   test:
     - CMD
     - bash
     - -c
     - >-
       exec 3<>/dev/tcp/localhost/4004 &&
-      printf 'GET /actuator/health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+      printf 'GET /actuator/health/readiness HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
       grep -q '"status":"UP"' <&3
   interval: 5s
   timeout: 3s
