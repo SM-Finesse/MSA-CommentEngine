@@ -4,7 +4,7 @@
 
 작업 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 봐 주세요.
 
-> 프로토타입 단계입니다. 화면 경로 중 통계(`/api/v1/stats/{username}`)까지 새 구조로 옮겼고, 코멘트(light·heavy)는 아직입니다.
+> 프로토타입 단계입니다. 화면 경로 중 통계(`/api/v1/stats/{username}`)와 light 코멘트까지 새 구조로 옮겼고, heavy 코멘트는 아직입니다.
 > 슬롯의 기준 문서는 「MSA 슬롯 구현 확정안」입니다 (레포에는 아직 없음).
 
 ## 무엇이 어디에 있나
@@ -85,7 +85,8 @@ gateway, comment-engine, finesse-api, tetris-analytics, small-gen, zipkin을 같
 | 화면이 부르는 경로 | 처리 |
 |---|---|
 | `GET /api/v1/stats/{username}` | finesse-api가 tetris-analytics에 그대로 넘기고 응답도 그대로 돌려줌. 모놀리식과 같은 경로·응답 |
-| `GET /api/v1/comment/{username}` | 아직 없음 (D·E단계) |
+| `GET /api/v1/comment/{username}?scope=light` | finesse-api: stats(tetris-analytics) → calc가 고른 하이라이트 → 엔진 light(tetris 칩) → 모놀리식과 같은 모양 `{light_summary, highlights[{stat, sentence}]}`. 캐시 10분 |
+| `GET /api/v1/comment/{username}?scope=heavy` | 아직 없음 (E단계, 501) |
 
 ```bash
 ./gradlew build -x test
@@ -200,6 +201,7 @@ docker compose restart comment-engine
 | `comment-engine` | `PackRegistryTest` (1개) | 잘못된 팩이 있으면 시작 실패 |
 | `finesse-api` | `FinesseApiTest` (3개) | 가짜 엔진을 세우고 계약대로 부르는지, 응답 모양과 에러 코드 변환 |
 | `finesse-api` | `EngineResilienceTest` (4개) | 엔진 503은 바로 넘김(다시 안 부름), 엔진에 닿지 않으면 한 번만 다시, 회로 열림(엔진을 안 부름)과 닫힘 |
+| `finesse-api` | `LightCommentFlowTest` (9개) | 콜드스타트 문장, 엔진 계약으로 부르기(값은 화면의 원값), 캐시(같은 stats면 꺼냄, stats가 새로 계산되면 다시), 대체 문장·3개 미만은 캐시 안 함, 지표 고르기 규칙, 고른 지표가 없으면 엔진 안 부름, stats 에러 그대로, scope 검사 |
 | `finesse-api` | `StatsRelayTest` (7개) | 통계를 바이트까지 그대로 넘김, 경로·쿼리를 받은 그대로, 에러 응답(404·503 + Retry-After)도 그대로, 닿지 않으면 한 번만 다시, 계속 안 되면 502 `TETRIO_API_UNAVAILABLE`, 답이 늦으면 다시 안 부름, 회로 열림 |
 | `gateway` | `GatewayRoutingTests` (5개) | 엔진 경로 3개와 칩 API 경로(`/api/**`)가 넘어가는지, 규칙 밖 경로는 404 |
 | `gateway` | `GatewayHealthTests` (1개) | gateway 헬스에 하위 서비스 상태가 나오는지 (UP, 회로 열림 → DOWN, 닿지 않음 → DOWN) |

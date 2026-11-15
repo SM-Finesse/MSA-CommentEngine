@@ -112,6 +112,13 @@ jobs:
           code=$(curl -s -o /tmp/stats.txt -w '%{http_code}' http://localhost:8080/api/v1/stats/a); cat /tmp/stats.txt; echo " [HTTP $code]"
           test "$code" = "400"
           grep -q '"error_code":"INVALID_USERNAME"' /tmp/stats.txt
+          echo "== finesse-api 경유 light (stats 에러를 그대로, scope 검사)"
+          code=$(curl -s -o /tmp/light.txt -w '%{http_code}' 'http://localhost:8080/api/v1/comment/a?scope=light'); cat /tmp/light.txt; echo " [HTTP $code]"
+          test "$code" = "400"
+          grep -q '"error_code":"INVALID_USERNAME"' /tmp/light.txt
+          code=$(curl -s -o /tmp/light.txt -w '%{http_code}' 'http://localhost:8080/api/v1/comment/abc?scope=nope'); cat /tmp/light.txt; echo " [HTTP $code]"
+          test "$code" = "400"
+          grep -q 'scope는 light 또는 heavy만 허용됩니다: nope' /tmp/light.txt
           echo "== 규칙 밖 경로는 404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/nope)" = "404"
 

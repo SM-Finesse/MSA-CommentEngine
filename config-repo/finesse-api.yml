@@ -23,6 +23,9 @@ analytics:
 app:
   endpoint:
     light-seconds: 40     # 백엔드 app.endpoint.light-seconds — 남은 시간을 deadline_ms로 넘긴다
+  light-cache:            # light 코멘트 캐시 (모놀리식 app.cache와 같은 10분). 열쇠는 유저 + stats의 updated_at
+    ttl: 10m
+    max-size: 1000
 
 # finesse-api → 엔진 구간의 다시 시도와 회로 차단기 (수업 13장 config-repo/product-composite.yml 과 같은 방식)
 resilience4j:
