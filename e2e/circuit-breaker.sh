@@ -33,11 +33,12 @@ call() {
   RETRY=$(tr -d '\r' < "$HEADERS" | awk 'tolower($1) == "retry-after:" {print $2}')
 }
 
-# finesse-api 헬스에서 회로 상태를 읽는다. 관리 포트(4004)는 밖으로 열려 있지 않아 컨테이너 안에서 부른다
+# finesse-api 헬스에서 엔진 회로(engine)의 상태를 읽는다. 관리 포트(4004)는 밖으로 열려 있지 않아 컨테이너 안에서 부른다
+# 회로는 engine, analytics 두 개라 이름으로 골라 낸다. HTTP/1.0으로 불러 본문이 조각(chunked)으로 나뉘지 않게 한다
 state() {
   docker compose exec -T finesse-api bash -c \
-    "exec 3<>/dev/tcp/localhost/4004 && printf 'GET /actuator/health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3" \
-    2>/dev/null | grep -o '"state":"[A-Z_]*"' | head -1 | cut -d'"' -f4 || true
+    "exec 3<>/dev/tcp/localhost/4004 && printf 'GET /actuator/health/circuitBreakers HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3 && cat <&3" \
+    2>/dev/null | tr -d '\r\n' | grep -o '"engine":{[^}]*}' | grep -o '"state":"[A-Z_]*"' | head -1 | cut -d'"' -f4 || true
 }
 
 restore_engine() { docker compose up -d --no-deps --wait --wait-timeout 120 comment-engine >/dev/null 2>&1 || true; }

@@ -4,7 +4,7 @@
 
 작업 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 봐 주세요.
 
-> 프로토타입 단계입니다. tetris-analytics는 아직 없습니다.
+> 프로토타입 단계입니다. 화면 경로 중 통계(`/api/v1/stats/{username}`)까지 새 구조로 옮겼고, 코멘트(light·heavy)는 아직입니다.
 > 슬롯의 기준 문서는 「MSA 슬롯 구현 확정안」입니다 (레포에는 아직 없음).
 
 ## 무엇이 어디에 있나
@@ -80,7 +80,12 @@ gateway, comment-engine, finesse-api, tetris-analytics, small-gen, zipkin을 같
 | gateway 경로 | 넘어가는 곳 |
 |---|---|
 | `/v1/comments/**`, `/v1/domains` | comment-engine (본체) |
-| `/api/**` | finesse-api (칩 쪽 API, 화면이 부르는 곳) → comment-engine |
+| `/api/**` | finesse-api (칩 쪽 API, 화면이 부르는 곳) → comment-engine, tetris-analytics |
+
+| 화면이 부르는 경로 | 처리 |
+|---|---|
+| `GET /api/v1/stats/{username}` | finesse-api가 tetris-analytics에 그대로 넘기고 응답도 그대로 돌려줌. 모놀리식과 같은 경로·응답 |
+| `GET /api/v1/comment/{username}` | 아직 없음 (D·E단계) |
 
 ```bash
 ./gradlew build -x test
@@ -97,6 +102,12 @@ curl http://localhost:8080/v1/domains
 ```bash
 curl http://localhost:8080/api/v1/comment-demo/domains
 ```
+
+```bash
+curl http://localhost:8080/api/v1/stats/<TETR.IO 이름>
+```
+
+통계는 실제 TETR.IO를 부릅니다 (처음 조회는 수집에 10초 안팎, 이후 10분은 캐시).
 
 추적 화면은 http://localhost:9411 입니다. gateway → finesse-api → comment-engine 요청이 한 줄로 이어져 보입니다.
 
@@ -188,11 +199,12 @@ docker compose restart comment-engine
 | `comment-engine` | `PackRegistryTest` (1개) | 잘못된 팩이 있으면 시작 실패 |
 | `finesse-api` | `FinesseApiTest` (3개) | 가짜 엔진을 세우고 계약대로 부르는지, 응답 모양과 에러 코드 변환 |
 | `finesse-api` | `EngineResilienceTest` (4개) | 엔진 503은 바로 넘김(다시 안 부름), 엔진에 닿지 않으면 한 번만 다시, 회로 열림(엔진을 안 부름)과 닫힘 |
+| `finesse-api` | `StatsRelayTest` (7개) | 통계를 바이트까지 그대로 넘김, 경로·쿼리를 받은 그대로, 에러 응답(404·503 + Retry-After)도 그대로, 닿지 않으면 한 번만 다시, 계속 안 되면 502 `TETRIO_API_UNAVAILABLE`, 답이 늦으면 다시 안 부름, 회로 열림 |
 | `gateway` | `GatewayRoutingTests` (5개) | 엔진 경로 3개와 칩 API 경로(`/api/**`)가 넘어가는지, 규칙 밖 경로는 404 |
 | `gateway` | `GatewayHealthTests` (1개) | gateway 헬스에 하위 서비스 상태가 나오는지 (UP, 회로 열림 → DOWN, 닿지 않음 → DOWN) |
 | `tetris-analytics` | 모놀리식에서 옮긴 시험 41개 | `calc` 35개(ArchUnit 경계 시험 포함), 통계 서비스, TETR.IO 클라이언트, 사용자명, 앱 기동. 실제 TETR.IO를 부르는 2개는 기본으로 건너뜀 |
 
-PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-test`의 `test` 작업). `compose` 작업은 docker compose로 본체를 띄운 뒤 gateway 경유 호출(엔진 직접, finesse-api 경유), 추적, 칩 꽂기·뽑기(`e2e/plug-test.sh`), 엔진 IP가 바뀌었을 때(`e2e/engine-ip-change.sh`), 회로 차단기 열림·닫힘(`e2e/circuit-breaker.sh`), gateway 헬스 모음(`e2e/gateway-health.sh`)을 확인합니다.
+PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-test`의 `test` 작업). `compose` 작업은 docker compose로 본체를 띄운 뒤 gateway 경유 호출(엔진 직접, finesse-api 경유), 추적, 칩 꽂기·뽑기(`e2e/plug-test.sh`), 엔진 IP가 바뀌었을 때(`e2e/engine-ip-change.sh`), 회로 차단기 열림·닫힘(`e2e/circuit-breaker.sh`), gateway 헬스 모음(`e2e/gateway-health.sh`), 통계 넘기기(`e2e/stats-relay.sh`)를 확인합니다.
 
 ## 만들다가 발견한 것 (확정안에 반영 필요)
 

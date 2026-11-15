@@ -76,11 +76,13 @@ services:
     depends_on:
       comment-engine:
         condition: service_healthy
+      tetris-analytics:
+        condition: service_healthy
       zipkin:
         condition: service_started
 
   # tetris 칩의 분석 서비스 (모놀리식 calc·통계를 옮김). TETR.IO에서 전적을 받아 지표를 계산한다
-  # gateway에는 열지 않는다. finesse-api가 안쪽에서 부른다 (다음 단계)
+  # gateway에는 열지 않는다. 화면의 /api/v1/stats/{username} 을 finesse-api가 받아 안쪽에서 넘긴다
   tetris-analytics:
     build: microservices/tetris-analytics
     image: msa-comment-engine/tetris-analytics
