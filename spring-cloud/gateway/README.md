@@ -5,9 +5,9 @@
 | 항목 | 값 |
 |---|---|
 | 포트 | 8080 (컨테이너 안에서는 관리 포트 4004를 따로 씀) |
-| 넘기는 경로 | `/v1/comments/**`, `/v1/domains` → comment-engine |
+| 넘기는 경로 | `/v1/comments/**`, `/v1/domains` → comment-engine (본체)<br>`/api/**` → finesse-api (칩 쪽 API) |
 | 경로 규칙 위치 | `config-repo/gateway.yml` |
-| 엔진 주소 | `app.engine-url` (기본 `http://localhost:7001`) |
+| 넘길 곳 주소 | `app.engine-url` (기본 `http://localhost:7001`), `app.finesse-api-url` (기본 `http://localhost:8092`) |
 | 주소 기억 시간 | `app.dns-cache-seconds` 5초. 엔진이 새 IP로 다시 떠도 5초 안에 따라감 (`DnsCacheConfiguration`) |
 
 아직 없는 것: 헬스체크 모음(`HealthCheckConfiguration`).

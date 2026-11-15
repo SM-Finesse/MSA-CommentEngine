@@ -71,7 +71,12 @@ curl.exe -s -H "Content-Type: application/json" http://localhost:8092/api/v1/com
 
 ## docker compose로 한 번에 띄우기
 
-gateway, comment-engine, small-gen, zipkin을 같이 띄웁니다. 밖으로 여는 포트는 gateway의 8080과 추적 화면(Zipkin)의 9411입니다.
+gateway, comment-engine, finesse-api, small-gen, zipkin을 같이 띄웁니다. 밖으로 여는 포트는 gateway의 8080과 추적 화면(Zipkin)의 9411입니다.
+
+| gateway 경로 | 넘어가는 곳 |
+|---|---|
+| `/v1/comments/**`, `/v1/domains` | comment-engine (본체) |
+| `/api/**` | finesse-api (칩 쪽 API, 화면이 부르는 곳) → comment-engine |
 
 ```bash
 ./gradlew build -x test
@@ -85,7 +90,11 @@ docker compose up -d --build
 curl http://localhost:8080/v1/domains
 ```
 
-추적 화면은 http://localhost:9411 입니다. gateway → comment-engine 요청이 한 줄로 이어져 보입니다.
+```bash
+curl http://localhost:8080/api/v1/comment-demo/domains
+```
+
+추적 화면은 http://localhost:9411 입니다. gateway → finesse-api → comment-engine 요청이 한 줄로 이어져 보입니다.
 
 ```bash
 docker compose down
@@ -174,9 +183,9 @@ docker compose restart comment-engine
 | `comment-engine` | `GenServerDownTest` (1개) | 생성 서버가 전부 꺼지면 그 칩만 503, 다른 칩은 정상 |
 | `comment-engine` | `PackRegistryTest` (1개) | 잘못된 팩이 있으면 시작 실패 |
 | `finesse-api` | `FinesseApiTest` (3개) | 가짜 엔진을 세우고 계약대로 부르는지, 응답 모양과 에러 코드 변환 |
-| `gateway` | `GatewayRoutingTests` (4개) | 엔진 경로 3개가 넘어가는지, 규칙 밖 경로는 404 |
+| `gateway` | `GatewayRoutingTests` (5개) | 엔진 경로 3개와 칩 API 경로(`/api/**`)가 넘어가는지, 규칙 밖 경로는 404 |
 
-PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-test`의 `test` 작업). `compose` 작업은 docker compose로 본체를 띄운 뒤 gateway 경유 호출, 추적, 칩 꽂기·뽑기(`e2e/plug-test.sh`), 엔진 IP가 바뀌었을 때(`e2e/engine-ip-change.sh`)를 확인합니다.
+PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-test`의 `test` 작업). `compose` 작업은 docker compose로 본체를 띄운 뒤 gateway 경유 호출(엔진 직접, finesse-api 경유), 추적, 칩 꽂기·뽑기(`e2e/plug-test.sh`), 엔진 IP가 바뀌었을 때(`e2e/engine-ip-change.sh`)를 확인합니다.
 
 ## 만들다가 발견한 것 (확정안에 반영 필요)
 

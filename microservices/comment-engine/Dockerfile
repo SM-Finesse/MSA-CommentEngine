@@ -12,4 +12,5 @@ COPY --from=builder /builder/extracted/spring-boot-loader/ ./
 COPY --from=builder /builder/extracted/snapshot-dependencies/ ./
 COPY --from=builder /builder/extracted/application/ ./
 
-ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+# 컨테이너 안에서는 다른 서비스의 IP가 바뀔 수 있어, 서비스 이름의 IP를 5초까지만 기억한다 (JVM 기본 30초)
+ENTRYPOINT ["java", "-Dsun.net.inetaddr.ttl=5", "org.springframework.boot.loader.launch.JarLauncher"]

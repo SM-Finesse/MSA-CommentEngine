@@ -80,6 +80,12 @@ jobs:
           call "tetris 칩 (server, small-gen)" -H 'Content-Type: application/json' http://localhost:8080/v1/comments/light \
             -d '{"domain":"tetris","items":[{"metric":"delta_app","value":0.05,"zone":"high"}],"deadline_ms":35000}' | tee /tmp/tetris.txt
           grep -q 'small-gen' /tmp/tetris.txt
+          call "finesse-api 경유 demo 칩" -H 'Content-Type: application/json' http://localhost:8080/api/v1/comment-demo/light \
+            -d '{"domain":"demo","highlights":[{"stat":"metric_a","value":0.31,"zone":"high"}]}' | tee /tmp/api-demo.txt
+          grep -q '"light_summary":"A가 높습니다."' /tmp/api-demo.txt
+          call "finesse-api 경유 tetris 칩" -H 'Content-Type: application/json' http://localhost:8080/api/v1/comment-demo/light \
+            -d '{"domain":"tetris","highlights":[{"stat":"delta_app","value":0.05,"zone":"high"}]}' | tee /tmp/api-tetris.txt
+          grep -q 'small-gen:9200' /tmp/api-tetris.txt
           echo "== 규칙 밖 경로는 404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/nope)" = "404"
 
@@ -87,20 +93,28 @@ jobs:
         run: |
           python3 - <<'PY'
           import json, sys, time, urllib.request
-          want = {"gateway", "comment-engine"}
-          last = None
+          # 경로마다 한 추적에 이 서비스들만 정확히 나와야 한다
+          want = {
+              "gateway → comment-engine": {"gateway", "comment-engine"},
+              "gateway → finesse-api → comment-engine": {"gateway", "finesse-api", "comment-engine"},
+          }
+          found, last = {}, None
           for _ in range(20):
               try:
-                  traces = json.load(urllib.request.urlopen("http://localhost:9411/api/v2/traces?serviceName=gateway&limit=20"))
+                  traces = json.load(urllib.request.urlopen("http://localhost:9411/api/v2/traces?serviceName=gateway&limit=100"))
               except Exception as e:
                   traces, last = [], e
               for t in traces:
-                  names = {s.get("localEndpoint", {}).get("serviceName") for s in t}
-                  if want <= names:
-                      print(f"OK: trace {t[0]['traceId']} spans={len(t)} services={sorted(n for n in names if n)}")
-                      sys.exit(0)
+                  names = {s.get("localEndpoint", {}).get("serviceName") for s in t} - {None}
+                  for label, services in want.items():
+                      if label not in found and names == services:
+                          found[label] = f"trace {t[0]['traceId']} spans={len(t)}"
+              if len(found) == len(want):
+                  for label in want:
+                      print(f"OK: {label}: {found[label]}")
+                  sys.exit(0)
               time.sleep(3)
-          print("gateway와 comment-engine이 한 추적에 같이 나오지 않음", last)
+          print("추적에 안 나온 경로:", [label for label in want if label not in found], last)
           print(urllib.request.urlopen("http://localhost:9411/api/v2/services").read().decode())
           sys.exit(1)
           PY

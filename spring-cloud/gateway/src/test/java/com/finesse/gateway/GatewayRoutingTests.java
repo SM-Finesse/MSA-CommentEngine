@@ -19,13 +19,14 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * config-repo/gateway.yml 의 경로 규칙을 그대로 읽어, 엔진 자리에 세운 가짜 서버로 요청이 넘어가는지 본다.
- * 가짜 서버는 받은 경로를 "engine:" 뒤에 붙여 돌려준다.
+ * config-repo/gateway.yml 의 경로 규칙을 그대로 읽어, 넘길 곳마다 세운 가짜 서버로 요청이 넘어가는지 본다.
+ * 가짜 서버는 받은 경로를 자기 이름("engine:", "finesse-api:") 뒤에 붙여 돌려준다.
  */
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 class GatewayRoutingTests {
 
-    private static final HttpServer ENGINE = startFakeEngine();
+    private static final HttpServer ENGINE = startFake("engine:");
+    private static final HttpServer FINESSE_API = startFake("finesse-api:");
 
     private final HttpClient client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
 
@@ -35,12 +36,14 @@ class GatewayRoutingTests {
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         registry.add("app.engine-url", () -> "http://localhost:" + ENGINE.getAddress().getPort());
+        registry.add("app.finesse-api-url", () -> "http://localhost:" + FINESSE_API.getAddress().getPort());
         registry.add("management.server.port", () -> "0");
     }
 
     @AfterAll
     static void stop() {
         ENGINE.stop(0);
+        FINESSE_API.stop(0);
     }
 
     @Test
@@ -68,6 +71,14 @@ class GatewayRoutingTests {
     }
 
     @Test
+    void apiGoesToFinesseApi() throws Exception {
+        HttpResponse<String> response = send(post("/api/v1/comment-demo/light"));
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).isEqualTo("finesse-api:/api/v1/comment-demo/light");
+    }
+
+    @Test
     void pathOutsideRulesIsNotForwarded() throws Exception {
         assertThat(send(get("/v1/unknown")).statusCode()).isEqualTo(404);
         assertThat(send(get("/actuator/health")).statusCode()).isEqualTo(404);
@@ -92,12 +103,12 @@ class GatewayRoutingTests {
         return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
-    private static HttpServer startFakeEngine() {
+    private static HttpServer startFake(String name) {
         try {
             HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
             server.createContext("/", exchange -> {
                 exchange.getRequestBody().readAllBytes();
-                byte[] body = ("engine:" + exchange.getRequestURI().getPath()).getBytes(StandardCharsets.UTF_8);
+                byte[] body = (name + exchange.getRequestURI().getPath()).getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(200, body.length);
                 try (var out = exchange.getResponseBody()) {
                     out.write(body);
@@ -106,7 +117,7 @@ class GatewayRoutingTests {
             server.start();
             return server;
         } catch (IOException e) {
-            throw new IllegalStateException("fake engine did not start", e);
+            throw new IllegalStateException("fake " + name + " did not start", e);
         }
     }
 }
