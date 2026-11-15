@@ -25,7 +25,8 @@ jobs:
           java-version: '25'
 
       - name: test
-        run: bash ./gradlew test --console=plain
+        # --continue: 한 모듈 시험이 실패해도 나머지 모듈 시험까지 돌려서 전체 결과를 본다
+        run: bash ./gradlew test --continue --console=plain
 
       - name: 시험 수 세기
         if: always()
@@ -107,6 +108,10 @@ jobs:
           call "finesse-api 경유 tetris 칩" -H 'Content-Type: application/json' http://localhost:8080/api/v1/comment-demo/light \
             -d '{"domain":"tetris","highlights":[{"stat":"delta_app","value":0.05,"zone":"high"}]}' | tee /tmp/api-tetris.txt
           grep -q 'small-gen:9200' /tmp/api-tetris.txt
+          echo "== finesse-api 경유 통계 (tetris-analytics 응답을 그대로). 틀린 유저명이라 TETR.IO는 부르지 않음"
+          code=$(curl -s -o /tmp/stats.txt -w '%{http_code}' http://localhost:8080/api/v1/stats/a); cat /tmp/stats.txt; echo " [HTTP $code]"
+          test "$code" = "400"
+          grep -q '"error_code":"INVALID_USERNAME"' /tmp/stats.txt
           echo "== 규칙 밖 경로는 404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/nope)" = "404"
 
@@ -118,6 +123,7 @@ jobs:
           want = {
               "gateway → comment-engine": {"gateway", "comment-engine"},
               "gateway → finesse-api → comment-engine": {"gateway", "finesse-api", "comment-engine"},
+              "gateway → finesse-api → tetris-analytics": {"gateway", "finesse-api", "tetris-analytics"},
           }
           found, last = {}, None
           for _ in range(20):
@@ -142,6 +148,9 @@ jobs:
 
       - name: gateway 헬스에 하위 서비스 상태
         run: bash e2e/gateway-health.sh
+
+      - name: 통계 넘기기 (finesse-api → tetris-analytics)
+        run: bash e2e/stats-relay.sh
 
       - name: 칩 꽂기·뽑기 (본체 5단계)
         run: bash e2e/plug-test.sh

@@ -15,6 +15,11 @@ engine:
   connect-timeout-ms: 3000
   read-timeout-ms: 45000    # light 마감(40초)보다 조금 길게. 엔진이 마감 안에 답하지 않을 때의 안전망
 
+analytics:
+  base-url: ${ANALYTICS_BASE_URL:http://localhost:7002}   # tetris-analytics 주소 (통계)
+  connect-timeout-ms: 3000
+  read-timeout-ms: 25000    # tetris-analytics의 stats 마감(app.endpoint.stats-seconds 20초)보다 조금 길게
+
 app:
   endpoint:
     light-seconds: 40     # 백엔드 app.endpoint.light-seconds — 남은 시간을 deadline_ms로 넘긴다
@@ -28,6 +33,11 @@ resilience4j:
         wait-duration: 1s
         retry-exceptions:        # 엔진 자체에 닿지 않을 때만. 엔진이 에러로 답한 것(503 등)은 다시 부르지 않는다
           - com.finesse.composite.EngineUnreachableException
+      analytics:                 # finesse-api → tetris-analytics (통계). 엔진과 같은 규칙
+        max-attempts: 2
+        wait-duration: 1s
+        retry-exceptions:        # 닿지 않을 때만. 답이 늦은 것(읽기 타임아웃)은 다시 부르지 않는다
+          - com.finesse.composite.AnalyticsUnreachableException
   circuitbreaker:
     instances:
       engine:
@@ -42,6 +52,19 @@ resilience4j:
         automatic-transition-from-open-to-half-open-enabled: true
         record-exceptions:       # 엔진에 닿지 않은 것만 실패로 센다. 엔진이 에러로 답했다면 엔진은 살아 있다
           - com.finesse.composite.EngineUnreachableException
+      analytics:
+        register-health-indicator: true
+        allow-health-indicator-to-fail: false
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 5
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:       # 닿지 않거나 답이 없는 것만 실패. 에러로 답했다면(404, 503 등) 살아 있다
+          - com.finesse.composite.AnalyticsUnreachableException
+          - com.finesse.composite.AnalyticsTimeoutException
 
 management:
   health:
@@ -52,3 +75,4 @@ management:
 spring.config.activate.on-profile: docker
 
 engine.base-url: http://comment-engine:7001
+analytics.base-url: http://tetris-analytics:7002
