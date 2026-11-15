@@ -1,0 +1,97 @@
+# 같은 TETR.IO 데이터로 모놀리식 backend와 MSA(gateway 경유)의 GET /api/v1/stats/{username} 응답을 비교한다
+#
+# 실제 TETR.IO를 부르므로 PR마다 돌리지 않는다. 손으로 돌리거나(Actions 탭 → compare-monolith → Run workflow),
+# 비교 도구 자체를 고친 PR에서만 돈다.
+#
+#   1. 러너에 TETR.IO 기록·재생 프록시(e2e/tetrio-replay.py)를 띄운다
+#   2. 모놀리식 backend(SM-Finesse/Finesse)와 MSA(docker compose)가 둘 다 그 프록시를 TETR.IO로 쓴다
+#   3. 유저마다 모놀리식을 먼저 부르고(실제 TETR.IO, 프록시가 기억) MSA를 나중에 부른다(프록시가 재생)
+#   4. updated_at(계산한 시각)만 빼고 두 응답이 같은지 본다 (e2e/compare-stats.py). 결과는 작업 요약에 표로
+name: compare-monolith
+
+on:
+  workflow_dispatch:
+    inputs:
+      users:
+        description: "비교할 TETR.IO 유저명 (쉼표로)"
+        default: "5han,turtle,newbie,nosuchuser9q"
+      monolith_ref:
+        description: "모놀리식 SM-Finesse/Finesse 커밋 (전체 SHA 또는 브랜치)"
+        default: "f1e06d1df640a41e934036106130249129a9e2ee"
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/compare-monolith.yml'
+      - 'e2e/tetrio-replay.py'
+      - 'e2e/compare-stats.py'
+      - 'e2e/compose.compare.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compare-monolith
+  cancel-in-progress: false   # TETR.IO 호출이 겹치지 않게 한 번에 하나만
+
+env:
+  USERS: ${{ inputs.users || '5han,turtle,newbie,nosuchuser9q' }}
+  MONOLITH_REF: ${{ inputs.monolith_ref || 'f1e06d1df640a41e934036106130249129a9e2ee' }}
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 모놀리식 받기
+        uses: actions/checkout@v4
+        with:
+          repository: SM-Finesse/Finesse
+          ref: ${{ env.MONOLITH_REF }}
+          path: mono
+          sparse-checkout: backend
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: jar 만들기 (MSA, 모놀리식)
+        run: |
+          bash ./gradlew build -x test --console=plain
+          cd mono/backend && bash ./gradlew bootJar -x test --console=plain
+
+      - name: TETR.IO 기록·재생 프록시 띄우기
+        run: |
+          nohup python3 e2e/tetrio-replay.py 9500 > /tmp/replay.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf -o /dev/null http://localhost:9500/__stats && exit 0; sleep 1; done
+          cat /tmp/replay.log; exit 1
+
+      - name: 모놀리식 띄우기 (8081)
+        run: |
+          jar=$(ls mono/backend/build/libs/*.jar | grep -v -- '-plain' | head -1)
+          echo "jar: $jar"
+          nohup java -jar "$jar" --server.port=8081 \
+            --tetrio.base-url=http://localhost:9500/api \
+            --finesse.analytics.collector.base-url=http://localhost:9500/api > /tmp/mono.log 2>&1 &
+          # actuator가 없으므로 틀린 유저명(400)으로 떠 있는지 본다 (TETR.IO는 부르지 않음)
+          for i in $(seq 1 60); do
+            [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/api/v1/stats/a)" = 400 ] && exit 0
+            sleep 2
+          done
+          tail -80 /tmp/mono.log; exit 1
+
+      - name: MSA 띄우기 (gateway 8080)
+        run: docker compose -f docker-compose.yml -f e2e/compose.compare.yml up -d --build --wait --wait-timeout 240
+
+      - name: 비교
+        run: python3 e2e/compare-stats.py
+
+      - name: 기록
+        if: always()
+        run: |
+          echo "== 프록시"; cat /tmp/replay.log || true
+          echo "== 모놀리식"; tail -60 /tmp/mono.log || true
+          echo "== tetris-analytics"; docker compose logs --no-color --tail 80 tetris-analytics || true
+          docker compose down -v || true
