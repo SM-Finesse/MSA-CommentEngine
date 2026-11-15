@@ -41,10 +41,11 @@ dependencies {
 }
 
 // ── 옮겨 온 시험 중 시간에 민감한 2개 (작성: 정한비). 원인과 고칠 곳은 README "시간에 민감한 시험" ──
-// 시험 코드는 원본 그대로 두고, 이 2개만 실패하면 최대 2번 다시 돌린다. 다른 시험이 실패하면 바로 빨간불.
+// 시험 코드는 원본 그대로 두고, 이 2개만 실패하면 최대 4번 다시 돌린다. 다른 시험이 실패하면 바로 빨간불.
+// (StatsServiceBusyTest 첫 시험은 CI에서 5번 중 2번 실패. 시도가 서로 독립이면 5번 연속 실패는 약 1%)
 tasks.named('test') {
     retry {
-        maxRetries = 2
+        maxRetries = 4
         maxFailures = 5
         failOnPassedAfterRetry = false
         filter {
