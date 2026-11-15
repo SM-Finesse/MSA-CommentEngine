@@ -23,6 +23,9 @@ import org.springframework.web.client.RestClient;
  *   <li>회로 차단기: 닿지 않거나 답이 없는 일이 잦으면 열려서, 열려 있는 동안 부르지 않고 바로 실패한다</li>
  * </ul>
  * 애너테이션이 걸리려면 다른 빈에서 불러야 해서 {@link StatsRelayController}와 나눠 두었다 ({@link EngineHttp}와 같음).
+ * <p>
+ * 참고: tetris-analytics가 답 없이 연결을 끊으면 JDK HttpClient가 GET을 스스로 한 번 더 보낸다 (JDK 내장 동작).
+ * 그래서 이 경우 tetris-analytics가 받는 요청은 Resilience4j 시도 수의 2배(최대 4번)다. GET이라 문제는 없다.
  */
 @Component
 public class AnalyticsHttp {

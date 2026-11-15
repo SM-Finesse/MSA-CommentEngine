@@ -6,6 +6,8 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryRegistry;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -30,6 +32,9 @@ import org.springframework.test.context.DynamicPropertySource;
  * 가짜 tetris-analytics가 다섯 가지로 답한다: OK(200), NOT_FOUND(404), BUSY(503 + Retry-After),
  * DROP(답 없이 연결을 끊음 = 닿지 않음), SLOW(읽기 타임아웃보다 늦게 답함).
  * 시험이 빨리 끝나도록 다시 시도 간격은 0.2초, 회로가 열려 있는 시간은 1초, 읽기 타임아웃은 0.8초로 줄였다.
+ * <p>
+ * 다시 시도는 가짜 서버가 받은 수가 아니라 Resilience4j 지표로 센다. 답 없이 끊긴 연결에서는 JDK HttpClient가
+ * GET을 스스로 한 번 더 보내기 때문에(JDK 내장 동작, CI에서 확인), 받은 수는 Resilience4j 시도 수의 2배가 된다.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "resilience4j.retry.instances.analytics.wait-duration=200ms",
@@ -124,6 +129,9 @@ class StatsRelayTest {
     @Autowired
     CircuitBreakerRegistry registry;
 
+    @Autowired
+    RetryRegistry retries;
+
     @BeforeEach
     void reset() {
         registry.circuitBreaker(AnalyticsHttp.NAME).reset();
@@ -170,29 +178,36 @@ class StatsRelayTest {
 
     @Test
     void 닿지_않으면_한_번만_다시_부른다() throws Exception {
-        dropFirst.set(1);
+        // 처음 한 번 끊긴 것은 JDK HttpClient가 스스로 다시 보내서 넘어가므로, 두 번 끊어야 Resilience4j 다시 시도까지 간다
+        dropFirst.set(2);
+        long before = retryMetrics().getNumberOfSuccessfulCallsWithRetryAttempt();
 
         HttpResponse<String> resp = get("/api/v1/stats/abc");
 
         assertThat(resp.statusCode()).as(resp.body()).isEqualTo(200);
-        assertThat(hits.get()).as("tetris-analytics를 부른 수").isEqualTo(2);
+        assertThat(resp.body()).isEqualTo(STATS_JSON);
+        assertThat(retryMetrics().getNumberOfSuccessfulCallsWithRetryAttempt() - before)
+                .as("다시 시도해서 성공한 호출 수").isEqualTo(1);
     }
 
     @Test
     void 계속_닿지_않으면_모놀리식과_같은_502_TETRIO_API_UNAVAILABLE() throws Exception {
         mode = Mode.DROP;
+        long before = retryMetrics().getNumberOfFailedCallsWithRetryAttempt();
 
         HttpResponse<String> resp = get("/api/v1/stats/abc");
 
         assertThat(resp.statusCode()).isEqualTo(502);
         assertThat(resp.body()).isEqualTo(UNAVAILABLE_JSON);
         assertThat(resp.headers().firstValue("Retry-After")).hasValue("5");
-        assertThat(hits.get()).as("tetris-analytics를 부른 수").isEqualTo(2);
+        assertThat(retryMetrics().getNumberOfFailedCallsWithRetryAttempt() - before)
+                .as("다시 시도하고도 실패한 호출 수").isEqualTo(1);
     }
 
     @Test
     void 답이_늦으면_다시_부르지_않고_502() throws Exception {
         mode = Mode.SLOW;
+        long before = retryMetrics().getNumberOfFailedCallsWithoutRetryAttempt();
 
         long start = System.nanoTime();
         HttpResponse<String> resp = get("/api/v1/stats/abc");
@@ -201,6 +216,8 @@ class StatsRelayTest {
         assertThat(resp.statusCode()).isEqualTo(502);
         assertThat(resp.body()).isEqualTo(UNAVAILABLE_JSON);
         assertThat(hits.get()).as("tetris-analytics를 부른 수").isEqualTo(1); // 다시 부르면 화면이 그만큼 더 기다린다
+        assertThat(retryMetrics().getNumberOfFailedCallsWithoutRetryAttempt() - before)
+                .as("다시 시도 없이 실패한 호출 수").isEqualTo(1);
         assertThat(ms).as("걸린 시간(ms)").isLessThan(1800);                 // 읽기 타임아웃 0.8초에서 끊음
     }
 
@@ -222,6 +239,10 @@ class StatsRelayTest {
         assertThat(resp.headers().firstValue("Retry-After")).hasValue("1"); // 회로가 열려 있는 시간 (시험은 1초)
         assertThat(hits.get()).as("회로가 열린 뒤 부른 수").isEqualTo(before);
         assertThat(ms).as("걸린 시간(ms)").isLessThan(500);
+    }
+
+    private Retry.Metrics retryMetrics() {
+        return retries.retry(AnalyticsHttp.NAME).getMetrics();
     }
 
     private CircuitBreaker.State state() {
