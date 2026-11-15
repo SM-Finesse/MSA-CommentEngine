@@ -32,7 +32,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: compare-monolith
+  group: tetrio-live   # live-check와 겹치지 않게 (TETR.IO 호출)
   cancel-in-progress: false   # TETR.IO 호출이 겹치지 않게 한 번에 하나만
 
 env:

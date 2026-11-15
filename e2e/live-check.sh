@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# 실제 TETR.IO로 새 구조를 한 바퀴 돌려 본다 (live-check 워크플로, 손으로 해 보던 확인을 그대로)
+#
+#   1. 통계:   gateway → finesse-api → tetris-analytics → TETR.IO
+#   2. light: 같은 유저, tetris 칩의 생성 서버(small-gen)가 문장을 만든다
+#   3. 추적:   light 요청 하나가 gateway → finesse-api → tetris-analytics · comment-engine 으로 한 추적에 이어지는지
+#              (finesse-api는 light 캐시를 다른 스레드에서 만들기 때문에 추적 문맥을 넘겨야 이어진다)
+#   4. 대체 문장: small-gen을 멈추고 light를 다시 부르면 팩의 대체 문장(phrases)이 나온다
+#
+# 본체가 docker compose로 떠 있는 상태에서 실행한다:  bash e2e/live-check.sh <TETR.IO 유저명>
+# 실제 TETR.IO를 부른다 (유저 1명에 5번 안팎). 결과는 GITHUB_STEP_SUMMARY가 있으면 거기에도 표로 남긴다.
+
+set -uo pipefail
+export MSYS_NO_PATHCONV=1
+cd "$(dirname "$0")/.."
+
+U=${1:-5han}
+G=http://localhost:8080
+SUMMARY=${GITHUB_STEP_SUMMARY:-/dev/null}
+FAILED=0
+fail() { printf '실패: %s\n' "$*"; FAILED=1; }
+
+get() { # 경로 파일 → "상태 걸린시간"
+  curl -s -o "$2" -w '%{http_code} %{time_total}' "$G$1" || echo "000 0"
+}
+
+echo "== 1. 통계 ($U)"
+read -r code t < <(get "/api/v1/stats/$U" /tmp/stats.json)
+echo "HTTP $code (${t}s)"
+[ "$code" = 200 ] || fail "통계가 200이 아님: $(head -c 300 /tmp/stats.json)"
+python3 - /tmp/stats.json <<'PY' | tee /tmp/stats-summary.txt
+import json, sys
+s = json.load(open(sys.argv[1]))
+picks = (s.get("highlight_judgement") or {}).get("picks") or []
+print(f"username={s.get('username')} cold_start={s.get('cold_start')} match_count={s.get('match_count')} updated_at={s.get('updated_at')}")
+print("하이라이트 후보(calc): " + (", ".join(f"{p.get('key')}({p.get('zone')})" for p in picks) or "없음"))
+PY
+
+echo "== 2. light (생성 서버 small-gen)"
+read -r code t < <(get "/api/v1/comment/$U?scope=light" /tmp/light1.json)
+echo "HTTP $code (${t}s)"
+[ "$code" = 200 ] || fail "light가 200이 아님: $(head -c 300 /tmp/light1.json)"
+python3 - /tmp/light1.json <<'PY' | tee /tmp/light1.txt
+import json, sys
+j = json.load(open(sys.argv[1]))
+print("light_summary: " + str(j.get("light_summary")))
+for h in j.get("highlights") or []:
+    print(f"  {h.get('stat')}: {h.get('sentence')}")
+PY
+if grep -q '"highlights":\[\]' /tmp/light1.json; then
+  echo "(하이라이트 없음 — 콜드스타트이거나 고른 지표가 없어 생성 서버를 부르지 않음)"
+elif ! grep -q 'small-gen:9200' /tmp/light1.json; then
+  fail "small-gen 문장이 아님 (생성 서버 경로를 타지 않았음)"
+fi
+
+echo "== 3. 추적 (light 요청 하나가 한 줄로)"
+TRACE=$(python3 - <<'PY'
+import json, time, urllib.request
+want = {"gateway", "finesse-api", "tetris-analytics", "comment-engine"}
+seen = []
+for _ in range(15):
+    try:
+        traces = json.load(urllib.request.urlopen("http://localhost:9411/api/v2/traces?serviceName=finesse-api&limit=100"))
+    except Exception:
+        traces = []
+    for t in traces:
+        names = {s.get("localEndpoint", {}).get("serviceName") for s in t} - {None}
+        if want <= names:
+            print(f"OK trace {t[0]['traceId']} spans={len(t)} services={sorted(names)}")
+            raise SystemExit(0)
+        seen.append(sorted(names))
+    time.sleep(2)
+print("NONE 본 추적: " + json.dumps(sorted({tuple(x) for x in seen})[:10], ensure_ascii=False))
+PY
+)
+echo "$TRACE"
+case "$TRACE" in OK*) ;; *) fail "gateway → finesse-api → tetris-analytics · comment-engine 이 한 추적에 없음" ;; esac
+
+echo "== 4. small-gen을 멈추고 대체 문장 (finesse-api를 다시 띄워 light 캐시를 비움)"
+docker compose stop small-gen >/dev/null 2>&1
+docker compose restart finesse-api >/dev/null 2>&1
+docker compose up -d --no-deps --wait --wait-timeout 120 finesse-api >/dev/null 2>&1 || fail "finesse-api가 다시 뜨지 않음"
+sleep 3
+read -r code t < <(get "/api/v1/comment/$U?scope=light" /tmp/light2.json)
+echo "HTTP $code (${t}s)"
+[ "$code" = 200 ] || fail "대체 문장 light가 200이 아님: $(head -c 300 /tmp/light2.json)"
+python3 - /tmp/light2.json <<'PY' | tee /tmp/light2.txt
+import json, sys
+j = json.load(open(sys.argv[1]))
+print("light_summary: " + str(j.get("light_summary")))
+for h in j.get("highlights") or []:
+    print(f"  {h.get('stat')}: {h.get('sentence')}")
+PY
+if grep -q 'small-gen' /tmp/light2.json; then fail "small-gen을 멈췄는데 small-gen 문장이 나옴"; fi
+docker compose start small-gen >/dev/null 2>&1
+
+{
+  echo "## 새 구조 한 바퀴 (\`$U\`, 실제 TETR.IO)"
+  echo
+  echo "### 1. 통계"
+  echo '```'; cat /tmp/stats-summary.txt; echo '```'
+  echo "### 2. light (생성 서버 small-gen)"
+  echo '```'; cat /tmp/light1.txt; echo '```'
+  echo "### 3. 추적"
+  echo '```'; echo "$TRACE"; echo '```'
+  echo "### 4. small-gen을 멈췄을 때 (팩 대체 문장)"
+  echo '```'; cat /tmp/light2.txt; echo '```'
+} >> "$SUMMARY"
+
+if [ "$FAILED" = 0 ]; then echo "== 통과"; else echo "== 실패한 확인이 있음"; fi
+exit "$FAILED"
