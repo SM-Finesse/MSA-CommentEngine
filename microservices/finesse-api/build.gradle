@@ -21,6 +21,9 @@ dependencies {
     // finesse-api → 엔진 구간의 다시 시도 · 회로 차단기 (수업 13장과 같은 애너테이션 방식)
     implementation "io.github.resilience4j:resilience4j-spring-boot4:${resilience4jVersion}"
     implementation 'org.springframework.boot:spring-boot-starter-aspectj'   // @Retry · @CircuitBreaker 가 쓰는 AOP
+    // light 코멘트 캐시 (모놀리식 CacheConfig와 같은 Caffeine) · 캐시를 만드는 스레드로 추적 문맥 넘기기
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+    implementation 'io.micrometer:context-propagation'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

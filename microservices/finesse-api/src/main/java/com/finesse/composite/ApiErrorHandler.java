@@ -8,6 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -57,6 +58,19 @@ public class ApiErrorHandler {
     private static int retryAfter(EngineException e) {
         Integer seconds = EngineCallException.retryAfterOf(e);
         return seconds == null ? 5 : seconds;
+    }
+
+    /** 모놀리식 GlobalExceptionHandler와 같은 코드·문장 (예: scope가 light·heavy가 아님) */
+    @ExceptionHandler(BadRequestException.class)
+    ResponseEntity<ApiErrorResponse> badRequest(BadRequestException e) {
+        return ResponseEntity.badRequest().body(new ApiErrorResponse("BAD_REQUEST", e.getMessage()));
+    }
+
+    /** 모놀리식 GlobalExceptionHandler와 같은 문장 */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ResponseEntity<ApiErrorResponse> missingParameter(MissingServletRequestParameterException e) {
+        return ResponseEntity.badRequest()
+                .body(new ApiErrorResponse("BAD_REQUEST", "필수 파라미터가 없습니다: " + e.getParameterName()));
     }
 
     @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
