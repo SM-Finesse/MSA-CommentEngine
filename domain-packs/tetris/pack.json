@@ -1,7 +1,7 @@
 {
   "spec_version": "0",
   "id": "tetris",
-  "version": "2026.11",
+  "version": "2026.11.15",
   "lang": "ko",
   "generation": { "mode": "server", "servers": ["http://localhost:9101", "http://localhost:9102"] },
   "sections": ["tr_trend", "playstyle", "attack", "defense", "strength_split", "comeback_rate", "session_vs_slope", "rivals"],
