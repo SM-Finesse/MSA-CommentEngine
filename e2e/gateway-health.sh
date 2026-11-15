@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gateway 헬스 하나로 본체 전체 상태를 보는지 (HealthCheckConfiguration)
 #
-#   1. 모두 떠 있으면 gateway 헬스의 services 에 comment-engine · finesse-api 가 UP
-#   2. 엔진을 멈추면 comment-engine 이 DOWN, gateway 헬스도 DOWN
+#   1. 모두 떠 있으면 gateway 헬스의 services 에 comment-engine · finesse-api · tetris-analytics 가 UP
+#   2. 엔진을 멈추면 comment-engine 이 DOWN, gateway 헬스도 DOWN (나머지는 그대로 UP)
 #   3. 엔진을 다시 띄우면 다시 UP
 #
 # 상태는 JSON 안의 순서에 기대지 않고 HTTP 코드로 본다: 헬스가 UP이면 200, DOWN이면 503.
@@ -35,7 +35,7 @@ state_of() {
 }
 
 show() {
-  echo "gateway 헬스: HTTP $(code_for /actuator/health)  comment-engine=$(state_of comment-engine)  finesse-api=$(state_of finesse-api)"
+  echo "gateway 헬스: HTTP $(code_for /actuator/health)  comment-engine=$(state_of comment-engine)  finesse-api=$(state_of finesse-api)  tetris-analytics=$(state_of tetris-analytics)"
 }
 
 # 원하는 상태가 될 때까지 기다린다 (최대 40초)
@@ -54,6 +54,7 @@ restore_engine() { docker compose up -d --no-deps --wait --wait-timeout 120 comm
 echo "== 1. 모두 떠 있을 때"
 wait_for comment-engine UP
 wait_for finesse-api UP
+wait_for tetris-analytics UP
 [ "$(code_for /actuator/health)" = 200 ] || fail "gateway 헬스가 UP(200)이 아님"
 
 echo "== 2. 엔진을 멈춘다"
@@ -62,6 +63,7 @@ trap restore_engine EXIT
 wait_for comment-engine DOWN
 [ "$(code_for /actuator/health)" = 503 ] || fail "gateway 헬스가 DOWN(503)이 아님"
 [ "$(state_of finesse-api)" = UP ] || fail "finesse-api 는 그대로 UP 이어야 함"
+[ "$(state_of tetris-analytics)" = UP ] || fail "tetris-analytics 는 그대로 UP 이어야 함"
 
 echo "== 3. 엔진을 다시 띄운다"
 docker compose up -d --no-deps --wait --wait-timeout 120 comment-engine >/dev/null
