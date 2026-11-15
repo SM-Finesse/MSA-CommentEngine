@@ -1,5 +1,5 @@
 # compare-monolith 워크플로에서만 쓰는 덮어쓰기: tetris-analytics가 실제 TETR.IO 대신 러너의 기록·재생 프록시를 부른다
-#   docker compose -f docker-compose.yml -f e2e/compose.compare.yml up -d
+#   docker compose -f docker-compose.yml -f chips/tetris/compose.yml -f e2e/compose.compare.yml up -d
 # 설정 키(tetrio.base-url, finesse.analytics.collector.base-url)는 SPRING_APPLICATION_JSON으로 덮는다
 # (옮긴 설정 파일 tetris-analytics.yml은 그대로 둔다)
 services:

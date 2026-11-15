@@ -1,0 +1,10 @@
+# 시험용 칩이 들고 오는 gateway 설정 (실제 칩의 chips/<칩>/gateway.yml 과 같은 모양)
+app.routes:
+  fake-api:
+    uri: ${app.fake-api-url:http://127.0.0.1:1}
+    paths:
+      - /api/**
+      - /fake/**
+
+app.health:
+  fake-api: ${app.fake-api-health:http://127.0.0.1:1/actuator/health}

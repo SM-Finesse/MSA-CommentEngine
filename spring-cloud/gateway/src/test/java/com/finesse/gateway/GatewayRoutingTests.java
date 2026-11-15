@@ -19,14 +19,16 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * config-repo/gateway.yml 의 경로 규칙을 그대로 읽어, 넘길 곳마다 세운 가짜 서버로 요청이 넘어가는지 본다.
- * 가짜 서버는 받은 경로를 자기 이름("engine:", "finesse-api:") 뒤에 붙여 돌려준다.
+ * config-repo/gateway.yml 의 본체 경로와, 시험용 칩(src/test/chips/fake/gateway.yml)이 들고 온 경로를 읽어
+ * 넘길 곳마다 세운 가짜 서버로 요청이 넘어가는지 본다.
+ * 가짜 서버는 받은 경로를 자기 이름("engine:", "fake-api:") 뒤에 붙여 돌려준다.
+ * 실제 칩(chips/)은 읽지 않는다 — 본체 시험이 특정 칩에 기대지 않게.
  */
-@SpringBootTest(webEnvironment = RANDOM_PORT)
+@SpringBootTest(webEnvironment = RANDOM_PORT, properties = "CHIPS_DIR=src/test/chips")
 class GatewayRoutingTests {
 
     private static final HttpServer ENGINE = startFake("engine:");
-    private static final HttpServer FINESSE_API = startFake("finesse-api:");
+    private static final HttpServer FAKE_API = startFake("fake-api:");
 
     private final HttpClient client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
 
@@ -36,14 +38,14 @@ class GatewayRoutingTests {
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         registry.add("app.engine-url", () -> "http://localhost:" + ENGINE.getAddress().getPort());
-        registry.add("app.finesse-api-url", () -> "http://localhost:" + FINESSE_API.getAddress().getPort());
+        registry.add("app.fake-api-url", () -> "http://localhost:" + FAKE_API.getAddress().getPort());
         registry.add("management.server.port", () -> "0");
     }
 
     @AfterAll
     static void stop() {
         ENGINE.stop(0);
-        FINESSE_API.stop(0);
+        FAKE_API.stop(0);
     }
 
     @Test
@@ -71,11 +73,19 @@ class GatewayRoutingTests {
     }
 
     @Test
-    void apiGoesToFinesseApi() throws Exception {
+    void chipRouteGoesToChipService() throws Exception {
         HttpResponse<String> response = send(post("/api/v1/comment-demo/light"));
 
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).isEqualTo("finesse-api:/api/v1/comment-demo/light");
+        assertThat(response.body()).isEqualTo("fake-api:/api/v1/comment-demo/light");
+    }
+
+    @Test
+    void chipCanBringMoreThanOnePath() throws Exception {
+        HttpResponse<String> response = send(get("/fake/hello"));
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).isEqualTo("fake-api:/fake/hello");
     }
 
     @Test

@@ -1,6 +1,6 @@
 name: build-test
 
-# 슬롯(api) · 본체(comment-engine, gateway) · 칩 쪽 서비스(finesse-api)의 빌드와 시험. PR과 main 푸시에서 돈다.
+# 슬롯(api) · 본체(comment-engine, gateway) · tetris 칩의 서비스(chips/tetris)의 빌드와 시험. PR과 main 푸시에서 돈다.
 on:
   pull_request:
     paths-ignore:
@@ -72,7 +72,7 @@ jobs:
           if-no-files-found: ignore
 
   compose:
-    # jar를 만들고 docker compose로 본체를 띄운 뒤 gateway(8080)를 거쳐 불러 본다
+    # jar를 만들고 docker compose로 본체와 tetris 칩(.env 의 COMPOSE_FILE)을 띄운 뒤 gateway(8080)를 거쳐 불러 본다
     runs-on: ubuntu-latest
     needs: test
     steps:
@@ -159,7 +159,7 @@ jobs:
       - name: 통계 넘기기 (finesse-api → tetris-analytics)
         run: bash e2e/stats-relay.sh
 
-      - name: 칩 꽂기·뽑기 (본체 5단계)
+      - name: 칩 꽂기·뽑기 (폴더 하나로, 자기 서비스를 가진 칩)
         run: bash e2e/plug-test.sh
 
       - name: 엔진 IP가 바뀌어도 gateway가 엔진을 찾는지

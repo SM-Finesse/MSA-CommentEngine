@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 /**
  * ① 엔진 계약 (칩 → 본체). 수업 repo의 ProductService처럼 경로를 인터페이스에 둔다.
- * 본체(comment-engine)는 이걸 구현하고, 칩(finesse-api)은 이 경로로 부른다.
+ * 본체(comment-engine)는 이걸 구현하고, 칩의 서비스는 이 경로로 부른다.
  */
 public interface CommentEngineService {
 

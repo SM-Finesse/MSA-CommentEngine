@@ -19,9 +19,10 @@ import tools.jackson.databind.PropertyNamingStrategies;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 팩 폴더를 읽고 확정안 4.5절 검사 4개를 한다. 하나라도 틀리면 PackLoadException.
+ * 칩 폴더의 팩({@code <칩>/pack/})을 읽고 확정안 4.5절 검사 4개를 한다. 하나라도 틀리면 PackLoadException.
+ * 칩 폴더에는 팩 말고도 칩의 서비스 코드 · 설정이 같이 있을 수 있다. 여기서는 pack 폴더만 본다.
  *  1. 필수 파일 · 칸이 있음
- *  2. 폴더 이름 = id, spec_version이 지원 목록 안
+ *  2. 칩 폴더 이름 = id, spec_version이 지원 목록 안
  *  3. phrases 5칸이 모두 비어 있지 않음
  *  4. server 모드면 servers가 1개 이상 (환경변수 FINESSE_PACK_{ID}_SERVERS가 있으면 그게 우선)
  */
@@ -41,10 +42,13 @@ public final class DomainPackReader {
         this.env = env;
     }
 
-    /** root 아래 폴더마다 팩 하나. 하나라도 실패하면 전부 실패 */
+    /** 칩 폴더 안에서 팩이 있는 곳 */
+    public static final String PACK_DIR = "pack";
+
+    /** root(chips) 아래 폴더마다 칩 하나, 칩마다 팩 하나. 하나라도 실패하면 전부 실패 */
     public List<DomainPack> readAll(Path root) {
         if (!Files.isDirectory(root)) {
-            throw new PackLoadException("pack root not found: " + root.toAbsolutePath());
+            throw new PackLoadException("chips root not found: " + root.toAbsolutePath());
         }
         List<DomainPack> packs = new ArrayList<>();
         try (Stream<Path> dirs = Files.list(root)) {
@@ -57,12 +61,17 @@ public final class DomainPackReader {
         return packs;
     }
 
-    public DomainPack read(Path dir) {
-        String folder = dir.getFileName().toString();
+    /** chipDir: 칩 폴더 (예: chips/demo). 그 안의 pack/ 을 읽는다. 칩 폴더 이름이 곧 팩 id */
+    public DomainPack read(Path chipDir) {
+        String folder = chipDir.getFileName().toString();
+        Path dir = chipDir.resolve(PACK_DIR);
+        if (!Files.isDirectory(dir)) {
+            throw new PackLoadException(folder + "/" + PACK_DIR + " folder missing");
+        }
 
         // 검사 1: 필수 파일
-        PackManifest m = readJson(dir, "pack.json", new TypeReference<PackManifest>() { });
-        Map<String, MetricDef> metrics = readJson(dir, "metrics.json", new TypeReference<LinkedHashMap<String, MetricDef>>() { });
+        PackManifest m = readJson(folder, dir, "pack.json", new TypeReference<PackManifest>() { });
+        Map<String, MetricDef> metrics = readJson(folder, dir, "metrics.json", new TypeReference<LinkedHashMap<String, MetricDef>>() { });
 
         // 검사 1: 필수 칸
         require(m.specVersion(), folder, "spec_version");
@@ -157,9 +166,8 @@ public final class DomainPackReader {
         }
     }
 
-    private <T> T readJson(Path dir, String file, TypeReference<T> type) {
+    private <T> T readJson(String folder, Path dir, String file, TypeReference<T> type) {
         Path p = dir.resolve(file);
-        String folder = dir.getFileName().toString();
         if (!Files.isRegularFile(p)) {
             throw new PackLoadException(folder + "/" + file + " missing");
         }

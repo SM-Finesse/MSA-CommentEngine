@@ -17,4 +17,4 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-// bootRun 작업 폴더 = 이 모듈 폴더. 팩은 ../../domain-packs 에서 읽는다 (compose에서는 /packs)
+// bootRun 작업 폴더 = 이 모듈 폴더. 칩은 ../../chips 에서 읽는다 (compose에서는 /chips)

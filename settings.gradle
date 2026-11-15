@@ -4,8 +4,13 @@ plugins {
 
 rootProject.name = 'msa-comment-engine'
 
-include 'api'                          // 슬롯: 약속 3개 (엔진 계약 · 팩 규격 · 생성 서버 규약)
-include 'microservices:comment-engine' // 본체
-include 'microservices:finesse-api'    // 칩 쪽 조합 서비스 (엔진 계약으로 본체를 부른다)
-include 'spring-cloud:gateway'         // 본체의 입구
-include 'microservices:tetris-analytics' // tetris 칩의 분석 서비스 (모놀리식 calc·통계를 옮김)
+// 슬롯: 약속 3개 (엔진 계약 · 팩 규격 · 생성 서버 규약)
+include 'api'
+
+// 본체: 분야를 모른다
+include 'microservices:comment-engine'
+include 'spring-cloud:gateway'           // 본체의 입구
+
+// 칩: chips/<칩 이름>/ 폴더 하나가 칩 하나. 칩의 서비스 코드도 그 안에 있다
+include 'chips:tetris:tetris-analytics'  // 분석 서비스 (모놀리식 calc·통계를 옮김)
+include 'chips:tetris:finesse-api'       // 화면이 부르는 API (엔진 계약으로 본체를 부른다)

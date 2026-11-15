@@ -85,7 +85,7 @@ jobs:
           tail -80 /tmp/mono.log; exit 1
 
       - name: MSA 띄우기 (gateway 8080)
-        run: docker compose -f docker-compose.yml -f e2e/compose.compare.yml up -d --build --wait --wait-timeout 240
+        run: docker compose -f docker-compose.yml -f chips/tetris/compose.yml -f e2e/compose.compare.yml up -d --build --wait --wait-timeout 240
 
       - name: 비교
         run: python3 e2e/compare-stats.py
