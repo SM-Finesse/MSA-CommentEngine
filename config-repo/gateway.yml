@@ -9,6 +9,12 @@ app.finesse-api-url: http://localhost:8092
 # 엔진 컨테이너가 새 IP로 다시 뜬 뒤 최대 10분 동안 옛 IP로 보내 500이 난다 (DnsCacheConfiguration)
 app.dns-cache-seconds: 5
 
+# gateway 헬스(/actuator/health)에 함께 보여 줄 하위 서비스의 헬스 주소 (HealthCheckConfiguration)
+# 칩이 API 서비스를 가지면 여기에 한 줄 더한다. gateway 코드는 고치지 않는다
+app.health:
+  comment-engine: ${app.engine-url}/actuator/health
+  finesse-api: ${app.finesse-api-url}/actuator/health
+
 spring.cloud.gateway.server.webflux:
   httpclient:
     connect-timeout: 3000
@@ -33,3 +39,8 @@ spring.config.activate.on-profile: docker
 
 app.engine-url: http://comment-engine:7001
 app.finesse-api-url: http://finesse-api:8092
+
+# 컨테이너 안에서는 헬스가 관리 포트(4004)에 있다
+app.health:
+  comment-engine: http://comment-engine:4004/actuator/health
+  finesse-api: http://finesse-api:4004/actuator/health

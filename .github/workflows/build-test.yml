@@ -119,6 +119,9 @@ jobs:
           sys.exit(1)
           PY
 
+      - name: gateway 헬스에 하위 서비스 상태
+        run: bash e2e/gateway-health.sh
+
       - name: 칩 꽂기·뽑기 (본체 5단계)
         run: bash e2e/plug-test.sh
 

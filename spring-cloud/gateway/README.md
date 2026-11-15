@@ -9,8 +9,9 @@
 | 경로 규칙 위치 | `config-repo/gateway.yml` |
 | 넘길 곳 주소 | `app.engine-url` (기본 `http://localhost:7001`), `app.finesse-api-url` (기본 `http://localhost:8092`) |
 | 주소 기억 시간 | `app.dns-cache-seconds` 5초. 엔진이 새 IP로 다시 떠도 5초 안에 따라감 (`DnsCacheConfiguration`) |
+| 헬스 모음 | gateway `/actuator/health`의 `services`에 comment-engine · finesse-api 상태 (`HealthCheckConfiguration`, 주소는 `app.health`). 하나라도 DOWN이면 gateway 헬스도 DOWN(503) |
 
-아직 없는 것: 헬스체크 모음(`HealthCheckConfiguration`).
+12번 감시 프로그램은 gateway 헬스 하나만 보면 본체 전체 상태를 알 수 있습니다. 컨테이너 헬스체크는 `/actuator/health/readiness`라서 하위 서비스가 죽어도 gateway 컨테이너는 정상으로 남습니다.
 
 ## 빌드와 시험
 
