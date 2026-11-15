@@ -1,5 +1,7 @@
 package com.finesse.engine;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.finesse.api.engine.EngineErrorCode;
 import com.finesse.api.engine.EngineException;
 import com.finesse.api.engine.dto.ItemSentence;
@@ -25,12 +27,18 @@ import org.springframework.stereotype.Component;
 /**
  * 팩의 generation.mode에 따라 갈라진다 (확정안 7절).
  *   template → TemplateGenerator
- *   server   → 생성 서버 호출, 실패한 항목만 TemplateGenerator로 대체 (fallback = true)
+ *   server   → 생성 서버 호출, 실패한 항목은 TemplateGenerator로 대체 (fallback = true)
+ * <p>
+ * light는 생성 서버 호출이 전부 실패해도 에러를 내지 않고 대체 문장으로 200을 돌려준다.
+ * 지금 서비스(모놀리식 백엔드 light-v5.2, LlmClient.callLightComments)가 "절대 예외를 던지지 않고 문장 틀로 채운다"와 같다.
+ * section은 전부 실패하면 에러 코드로 알린다 — 모놀리식 heavy 챕터가 문장 틀 없이 failed로 끝나는 것과 대응한다.
  */
 @Component
 public class GenerationRouter {
 
     static final String ENGINE_VERSION = "0.1.0";
+
+    private static final Logger log = LoggerFactory.getLogger(GenerationRouter.class);
 
     /** 응답을 만들어 돌려줄 여유 */
     private static final long MARGIN_MS = 200;
@@ -70,7 +78,8 @@ public class GenerationRouter {
             failures.add(summary.failure());
         }
         if (failures.size() == sentences.size() + 1) {
-            throwIfAllFailed(failures);
+            // 전부 실패해도 에러로 돌리지 않는다 (모놀리식 light-v5.2와 같음). 대신 남겨 두어 감시에서 보이게
+            log.warn("[{}] light: 생성 서버 호출 {}건이 전부 실패 {} -> 대체 문장으로 응답", pack.id(), failures.size(), failures);
         }
 
         boolean anyFallback = false;
