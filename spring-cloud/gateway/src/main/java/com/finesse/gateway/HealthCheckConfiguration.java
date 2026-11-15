@@ -22,8 +22,8 @@ import reactor.netty.http.client.HttpClient;
  * <p>
  * 수업과 다른 점
  * <ul>
- *   <li>부를 주소는 코드가 아니라 config-repo/gateway.yml 의 {@code app.health}에 있다. 서비스가 늘어도 코드는 그대로</li>
- *   <li>응답이 2xx인지만 보지 않고 {@code status}가 UP인지 본다. 회로가 열린 finesse-api는 200에 CIRCUIT_OPEN을 준다</li>
+ *   <li>부를 주소는 코드가 아니라 설정의 {@code app.health}에 있다. 본체 것은 config-repo/gateway.yml, 칩의 서비스는 칩 폴더의 gateway.yml. 서비스가 늘어도 코드는 그대로</li>
+ *   <li>응답이 2xx인지만 보지 않고 {@code status}가 UP인지 본다. 회로가 열린 서비스는 200에 CIRCUIT_OPEN을 줄 수 있다</li>
  *   <li>경로를 넘길 때와 같은 HTTP 클라이언트(주소를 5초까지만 기억, {@link DnsCacheConfiguration})를 쓴다.
  *       따로 만들면 엔진 IP가 바뀐 뒤 헬스만 최대 10분 동안 옛 주소를 본다</li>
  * </ul>

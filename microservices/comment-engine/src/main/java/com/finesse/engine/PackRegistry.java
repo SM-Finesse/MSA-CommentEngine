@@ -14,7 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * 시작할 때 packs-dir 아래 팩을 전부 읽는다. 하나라도 검사에 걸리면 예외 → 엔진이 뜨지 않는다 (fail-fast).
+ * 시작할 때 chips-dir 아래 칩마다 팩(<칩>/pack/)을 전부 읽는다. 하나라도 검사에 걸리면 예외 → 엔진이 뜨지 않는다 (fail-fast).
  * 꽂힌 팩은 실행 중에 바뀌지 않는다. 팩을 바꾸려면 재시작.
  */
 @Component
@@ -24,8 +24,8 @@ public class PackRegistry {
 
     private final Map<String, DomainPack> packs = new LinkedHashMap<>();
 
-    public PackRegistry(@Value("${engine.packs-dir}") String packsDir) {
-        Path root = Path.of(packsDir);
+    public PackRegistry(@Value("${engine.chips-dir}") String chipsDir) {
+        Path root = Path.of(chipsDir);
         for (DomainPack pack : new DomainPackReader(System::getenv).readAll(root)) {
             packs.put(pack.id(), pack);
             log.info("pack loaded: {} v{} mode={} metrics={} sections={} servers={}",

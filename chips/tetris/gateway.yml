@@ -1,0 +1,24 @@
+# tetris 칩이 gateway에 꽂는 것: 경로와 헬스
+# gateway는 chips/*/gateway.yml 을 전부 읽는다. gateway 코드와 config-repo/gateway.yml 은 고치지 않는다.
+
+# 화면이 부르는 경로. /api/** 는 이 칩의 finesse-api로 간다
+app.routes:
+  finesse-api:
+    uri: http://localhost:8092
+    paths:
+      - /api/**
+
+# gateway 헬스(/actuator/health)에 같이 보일 이 칩의 서비스
+app.health:
+  finesse-api: http://localhost:8092/actuator/health
+  tetris-analytics: http://localhost:7002/actuator/health
+
+---
+spring.config.activate.on-profile: docker
+
+app.routes.finesse-api.uri: http://finesse-api:8092
+
+# 컨테이너 안에서는 헬스가 관리 포트(4004)에 있다
+app.health:
+  finesse-api: http://finesse-api:4004/actuator/health
+  tetris-analytics: http://tetris-analytics:4004/actuator/health

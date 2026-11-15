@@ -1,8 +1,0 @@
-# 설정 본문은 config-repo/finesse-api.yml 에 있다 (gateway와 같은 방식, 수업 12장의 폴더 구조, Config Server는 없음).
-# 로컬 실행·시험: 작업 폴더가 이 모듈 폴더라서 ../../config-repo 를 읽는다.
-# compose: SPRING_CONFIG_LOCATION으로 /config-repo 의 두 파일을 직접 지정하므로 이 파일은 쓰이지 않는다.
-spring:
-  config:
-    import:
-      - file:${CONFIG_DIR:../../config-repo}/application.yml
-      - file:${CONFIG_DIR:../../config-repo}/finesse-api.yml

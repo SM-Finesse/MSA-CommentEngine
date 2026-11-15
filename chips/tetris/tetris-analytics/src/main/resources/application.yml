@@ -1,0 +1,8 @@
+# 설정 본문은 칩 폴더의 config/tetris-analytics.yml 에 있다. 공통 설정만 본체의 config-repo/application.yml 을 같이 읽는다.
+# 로컬 실행·시험: 작업 폴더가 이 모듈 폴더(chips/tetris/tetris-analytics)라서 ../config 와 ../../../config-repo 를 읽는다.
+# compose: SPRING_CONFIG_LOCATION으로 두 파일을 직접 지정하므로 이 파일은 쓰이지 않는다 (chips/tetris/compose.yml).
+spring:
+  config:
+    import:
+      - file:${CONFIG_DIR:../../../config-repo}/application.yml
+      - file:${CHIP_CONFIG_DIR:../config}/tetris-analytics.yml

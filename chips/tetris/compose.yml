@@ -1,0 +1,75 @@
+# tetris 칩의 서비스. 본체 compose(docker-compose.yml)에 겹쳐서 쓴다 — 혼자서는 뜨지 않는다.
+# 레포 루트의 .env (COMPOSE_FILE)에 이 파일이 적혀 있어서, 루트에서 `docker compose up -d --build` 하면 같이 뜬다.
+# 경로는 레포 루트 기준이다 (겹쳐 쓰는 compose 파일의 경로는 첫 파일의 폴더를 기준으로 한다).
+#
+#   gateway /api/** → finesse-api ─┬─ comment-engine (본체) → small-gen (이 칩의 생성 서버 자리)
+#                                  └─ tetris-analytics → TETR.IO
+#
+# 이 칩을 뽑으려면: .env 의 COMPOSE_FILE 에서 이 파일을 빼고, chips/tetris 폴더를 치운다. 본체 파일은 그대로다.
+
+x-healthcheck: &healthcheck
+  # 본체 compose와 같은 헬스체크 (compose 파일끼리는 &이름을 같이 쓸 수 없어 한 번 더 적는다)
+  test:
+    - CMD
+    - bash
+    - -c
+    - >-
+      exec 3<>/dev/tcp/localhost/4004 &&
+      printf 'GET /actuator/health/readiness HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+      grep -q '"status":"UP"' <&3
+  interval: 5s
+  timeout: 3s
+  retries: 30
+  start_period: 10s
+
+services:
+  # 화면이 부르는 API. gateway의 /api/** 가 여기로 온다 (chips/tetris/gateway.yml)
+  finesse-api:
+    build: chips/tetris/finesse-api
+    image: msa-comment-engine/finesse-api
+    mem_limit: 512m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CONFIG_LOCATION=file:/config-repo/application.yml,file:/chip-config/finesse-api.yml
+    volumes:
+      - ./config-repo:/config-repo:ro          # 공통 설정 (application.yml)만 본체 것을 같이 읽는다
+      - ./chips/tetris/config:/chip-config:ro
+    healthcheck: *healthcheck
+    depends_on:
+      comment-engine:
+        condition: service_healthy
+      tetris-analytics:
+        condition: service_healthy
+      zipkin:
+        condition: service_started
+
+  # 분석 서비스 (모놀리식 calc·통계를 옮김). TETR.IO에서 전적을 받아 지표를 계산한다
+  # gateway에는 열지 않는다. 화면의 /api/v1/stats/{username} 을 finesse-api가 받아 안쪽에서 넘긴다
+  tetris-analytics:
+    build: chips/tetris/tetris-analytics
+    image: msa-comment-engine/tetris-analytics
+    mem_limit: 768m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CONFIG_LOCATION=file:/config-repo/application.yml,file:/chip-config/tetris-analytics.yml
+    volumes:
+      - ./config-repo:/config-repo:ro
+      - ./chips/tetris/config:/chip-config:ro
+    healthcheck: *healthcheck
+    depends_on:
+      zipkin:
+        condition: service_started
+
+  # 시연용 작은 생성 서버. 이 칩의 llm-server 자리 (C안: 칩마다 생성 서버 하나)
+  small-gen:
+    image: eclipse-temurin:25-jdk
+    mem_limit: 256m
+    command: ["java", "/app/SmallGenServer.java", "9200"]
+    volumes:
+      - ./small-gen:/app:ro
+
+  # 본체 엔진에 이 칩의 생성 서버 주소를 알려 준다 (본체 compose의 comment-engine에 환경변수 한 줄이 더해진다)
+  # 실제 llm-server로 바꾸려면 이 줄만 고친다 (쉼표로 여러 대)
+  comment-engine:
+    environment:
+      - FINESSE_PACK_TETRIS_SERVERS=http://small-gen:9200

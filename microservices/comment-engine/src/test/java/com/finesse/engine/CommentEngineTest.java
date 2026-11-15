@@ -38,7 +38,7 @@ class CommentEngineTest {
 
     @DynamicPropertySource
     static void packs(DynamicPropertyRegistry r) {
-        r.add("engine.packs-dir", PACKS::toString);
+        r.add("engine.chips-dir", PACKS::toString);
     }
 
     @AfterAll

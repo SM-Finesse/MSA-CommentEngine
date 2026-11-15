@@ -1,5 +1,5 @@
 ﻿# 엔진(7001)이 떠 있는 상태에서 실행:  .\try.ps1
-# 칩(finesse-api) 대신 엔진 계약으로 직접 불러 본다
+# 칩의 서비스 대신 엔진 계약으로 직접 불러 본다
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 function Call($title, $path, $body) {

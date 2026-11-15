@@ -4,7 +4,7 @@ spring.application.name: comment-engine
 spring.jackson.property-naming-strategy: SNAKE_CASE   # JSON은 전부 snake_case (확정안 3.3절)
 
 engine:
-  packs-dir: ${PACKS_DIR:../../domain-packs}   # 칩(팩) 폴더. 로컬은 레포의 domain-packs
+  chips-dir: ${CHIPS_DIR:../../chips}   # 칩 폴더. 칩마다 <칩>/pack/ 을 읽는다. 로컬은 레포의 chips
   call-timeout-ms: 10000    # 생성 서버 1회 호출 타임아웃
   exclude-seconds: 30       # 연결 실패한 생성 서버를 빼 두는 시간. 503의 Retry-After도 이 값
   max-attempts: 3
@@ -14,4 +14,4 @@ logging.pattern.console: "%d{HH:mm:ss.SSS} %-5level %-18logger{0} %msg%n"
 ---
 spring.config.activate.on-profile: docker
 
-engine.packs-dir: /packs   # compose: ./domain-packs:/packs:ro
+engine.chips-dir: /chips   # compose: ./chips:/chips:ro

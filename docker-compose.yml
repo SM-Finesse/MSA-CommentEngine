@@ -1,6 +1,11 @@
-# 본체와 칩 쪽 서비스를 한 번에 띄운다
-#   gateway ─┬─ /v1/**  → comment-engine → 생성 서버(small-gen)
-#            └─ /api/** → finesse-api → comment-engine
+# 본체만 있다: gateway, comment-engine, 추적 화면(zipkin). 칩의 서비스는 여기에 없다.
+#
+#   gateway ─── /v1/** → comment-engine → 칩의 생성 서버
+#      └─────── 칩이 들고 온 경로 (chips/<칩>/gateway.yml) → 칩의 서비스
+#
+# 칩은 chips/<칩>/ 폴더 하나다. 팩(pack/)만 있는 칩은 폴더를 두기만 하면 엔진이 읽는다.
+# 자기 서비스가 있는 칩은 chips/<칩>/compose.yml 을 들고 오고, .env 의 COMPOSE_FILE 목록에 한 줄 더한다.
+# 그래서 아래 명령은 본체와 꽂힌 칩을 같이 띄운다 (.env 를 읽는다):
 #
 #   ./gradlew build -x test
 #   docker compose up -d --build
@@ -10,7 +15,7 @@
 
 x-healthcheck: &healthcheck
   # eclipse-temurin:25-jre 에는 wget · curl 이 없어 bash 의 /dev/tcp 로 관리 포트(4004)를 부른다
-  # readiness 는 "이 서비스가 요청을 받을 준비가 됐나"만 본다. 엔진이 죽어 finesse-api 의 회로가 열려도 finesse-api 컨테이너는 정상
+  # readiness 는 "이 서비스가 요청을 받을 준비가 됐나"만 본다. 다른 서비스가 죽어도 이 컨테이너는 정상
   test:
     - CMD
     - bash
@@ -31,16 +36,16 @@ services:
     mem_limit: 512m
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_CONFIG_LOCATION=file:/config-repo/application.yml,file:/config-repo/gateway.yml
+      # 본체 설정 두 개 + 칩이 들고 온 경로·헬스 (칩마다 chips/<칩>/gateway.yml, 없으면 건너뜀)
+      - SPRING_CONFIG_LOCATION=file:/config-repo/application.yml,file:/config-repo/gateway.yml,optional:file:/chips/*/gateway.yml
     volumes:
       - ./config-repo:/config-repo:ro
+      - ./chips:/chips:ro
     ports:
       - "8080:8080"
     healthcheck: *healthcheck
     depends_on:
       comment-engine:
-        condition: service_healthy
-      finesse-api:
         condition: service_healthy
       zipkin:
         condition: service_started
@@ -52,52 +57,15 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_CONFIG_LOCATION=file:/config-repo/application.yml,file:/config-repo/comment-engine.yml
-      # tetris 칩의 생성 서버 주소. 실제 llm-server로 바꾸려면 이 줄만 고친다 (쉼표로 여러 대)
-      - FINESSE_PACK_TETRIS_SERVERS=http://small-gen:9200
     volumes:
       - ./config-repo:/config-repo:ro
-      - ./domain-packs:/packs:ro     # 칩은 이미지에 굽지 않고 꽂는다
+      - ./chips:/chips:ro     # 칩은 이미지에 굽지 않고 꽂는다. 엔진은 칩마다 /chips/<칩>/pack/ 만 읽는다
     healthcheck: *healthcheck
     depends_on:
       zipkin:
         condition: service_started
 
-  # 칩 쪽 조합 서비스 (tetris 칩). 화면이 부르는 API로, gateway의 /api/** 가 여기로 온다
-  finesse-api:
-    build: microservices/finesse-api
-    image: msa-comment-engine/finesse-api
-    mem_limit: 512m
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_CONFIG_LOCATION=file:/config-repo/application.yml,file:/config-repo/finesse-api.yml
-    volumes:
-      - ./config-repo:/config-repo:ro
-    healthcheck: *healthcheck
-    depends_on:
-      comment-engine:
-        condition: service_healthy
-      tetris-analytics:
-        condition: service_healthy
-      zipkin:
-        condition: service_started
-
-  # tetris 칩의 분석 서비스 (모놀리식 calc·통계를 옮김). TETR.IO에서 전적을 받아 지표를 계산한다
-  # gateway에는 열지 않는다. 화면의 /api/v1/stats/{username} 을 finesse-api가 받아 안쪽에서 넘긴다
-  tetris-analytics:
-    build: microservices/tetris-analytics
-    image: msa-comment-engine/tetris-analytics
-    mem_limit: 768m
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_CONFIG_LOCATION=file:/config-repo/application.yml,file:/config-repo/tetris-analytics.yml
-    volumes:
-      - ./config-repo:/config-repo:ro
-    healthcheck: *healthcheck
-    depends_on:
-      zipkin:
-        condition: service_started
-
-  # 추적 화면. gateway → finesse-api → comment-engine 요청이 한 줄로 이어져 보인다
+  # 추적 화면. gateway → 칩의 서비스 → comment-engine 요청이 한 줄로 이어져 보인다
   zipkin:
     image: openzipkin/zipkin:3.5.0
     mem_limit: 1024m
@@ -105,11 +73,3 @@ services:
       - STORAGE_TYPE=mem
     ports:
       - "9411:9411"
-
-  # 시연용 작은 생성 서버. tetris 칩의 llm-server 자리
-  small-gen:
-    image: eclipse-temurin:25-jdk
-    mem_limit: 256m
-    command: ["java", "/app/SmallGenServer.java", "9200"]
-    volumes:
-      - ./small-gen:/app:ro

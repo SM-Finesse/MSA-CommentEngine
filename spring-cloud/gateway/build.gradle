@@ -27,4 +27,4 @@ dependencyManagement {
     }
 }
 
-// bootRun · test 작업 폴더 = 이 모듈 폴더. 설정은 ../../config-repo 에서 읽는다 (compose에서는 /config-repo)
+// bootRun · test 작업 폴더 = 이 모듈 폴더. 설정은 ../../config-repo 와 ../../chips/*/gateway.yml 에서 읽는다 (compose에서는 /config-repo, /chips)

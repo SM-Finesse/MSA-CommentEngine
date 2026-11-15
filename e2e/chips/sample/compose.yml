@@ -1,0 +1,19 @@
+# 시험용 칩(sample)의 서비스 — 칩 꽂기 시험(e2e/plug-test.sh)이 chips/sample/ 로 복사한 뒤 본체 compose에 겹쳐 띄운다.
+# 실제 칩(chips/tetris/compose.yml)과 같은 모양이다: 자기 생성 서버 하나(C안)와 자기 API 서비스 하나.
+# 경로는 레포 루트 기준이고, 복사된 뒤의 위치(chips/sample)로 적는다.
+services:
+  # 이 칩의 생성 서버. 주소는 팩(pack/pack.json 의 generation.servers)에 적혀 있다
+  sample-gen:
+    image: eclipse-temurin:25-jdk
+    mem_limit: 256m
+    command: ["java", "/app/SmallGenServer.java", "9300"]
+    volumes:
+      - ./small-gen:/app:ro
+
+  # 이 칩의 API 서비스. gateway의 /sample/** 가 여기로 온다 (gateway.yml)
+  sample-api:
+    image: eclipse-temurin:25-jdk
+    mem_limit: 256m
+    command: ["java", "/app/SampleApi.java", "9310", "http://comment-engine:7001"]
+    volumes:
+      - ./chips/sample/api:/app:ro
