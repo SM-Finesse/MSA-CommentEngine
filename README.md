@@ -161,7 +161,7 @@ docker compose restart comment-engine
 | # | 해 볼 것 | 보이는 것 | 확정안 |
 |---|---|---|---|
 | 1 | 그냥 `try.ps1` | demo는 `phrases` 문장, tetris는 `[small-gen:9200] …` 문장. **같은 엔진, 같은 경로** | 2장 |
-| 2 | 창 2에서 환경변수를 빼고 재시작 (tetris가 `localhost:9101` · `9102`를 봄) | tetris 요청이 `503 LLM_UNAVAILABLE` + `Retry-After: 30` | 3.4절 |
+| 2 | 창 2에서 환경변수를 빼고 재시작 (tetris가 `localhost:9101` · `9102`를 봄) | tetris light는 `phrases` 대체 문장, `fallback: true`로 200. tetris section은 `503 LLM_UNAVAILABLE` + `Retry-After: 30` | 3.4절 |
 | 3 | small-gen을 `$env:FAIL_RATE=100`으로 띄움 | tetris 문장이 `phrases` 대체 문장으로 바뀌고 `fallback: true` | 7절 |
 | 4 | small-gen을 `$env:FAIL_RATE=50`으로 띄움 | 엔진 로그에서 실패 → 재시도 → 성공이 보임. 일부 항목만 `fallback: true`일 때도 있음 | 7.2절 |
 | 5 | `domain-packs/demo/metrics.json`에서 `zero` 한 칸을 `""`로 바꾸고 재시작 | 엔진이 `metric_b.phrases.zero is blank`로 **아예 안 뜸** | 4.5절 |
@@ -181,7 +181,7 @@ docker compose restart comment-engine
 |---|---|---|
 | `api` | `Stage1Test` (7개) | DTO ↔ JSON 왕복과 snake_case, 입력 검증, 팩 리더(실제 팩 통과 · 고장 팩 4개 · 환경변수 덮어쓰기), 본체 코드에 `delta_` · `tetr` · `chapter` · `챕터` 없음 |
 | `comment-engine` | `CommentEngineTest` (6개) | demo(template)와 tetris(server, 가짜 생성 서버)를 엔진 계약으로 호출, 팩 목록, 에러 코드 |
-| `comment-engine` | `GenServerDownTest` (1개) | 생성 서버가 전부 꺼지면 그 칩만 503, 다른 칩은 정상 |
+| `comment-engine` | `GenServerDownTest` (3개) | 생성 서버가 전부 꺼지면 light는 대체 문장 200, section은 503, 다른 칩은 정상 |
 | `comment-engine` | `PackRegistryTest` (1개) | 잘못된 팩이 있으면 시작 실패 |
 | `finesse-api` | `FinesseApiTest` (3개) | 가짜 엔진을 세우고 계약대로 부르는지, 응답 모양과 에러 코드 변환 |
 | `finesse-api` | `EngineResilienceTest` (4개) | 엔진 503은 바로 넘김(다시 안 부름), 엔진에 닿지 않으면 한 번만 다시, 회로 열림(엔진을 안 부름)과 닫힘 |
@@ -195,5 +195,5 @@ PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-tes
 |---|---|---|
 | 1 | 지금 llm-server는 zone을 **`높음` · `보통` · `낮음`**으로 받는데, 엔진 계약은 `high` · `normal` · `low`. 확정안 5절 변환 표에 zone이 빠져 있음 | `GenerationProtocol`에서 변환 |
 | 2 | 생성 서버 규약을 동결하면 `chapter_id` · `/heavy-chapter`가 본체 코드에 남음 → 9.1절 시험 4("chapter 0건")와 충돌 | 변환을 `GenerationProtocol` 한 곳에 모으고, 그 파일과 `api/generation/`만 시험에서 제외 |
-| 3 | 생성 서버가 전부 실패할 때 503으로 끝낼지, `phrases` 대체 문장으로 200을 줄지가 7절 그림만으로는 갈림 | 연결 실패만 → 503, 시간 초과 → 504, 형식 오류만 → 502, 그 밖(5xx 등) → 대체 문장 200 |
+| 3 | 생성 서버가 전부 실패할 때 503으로 끝낼지, `phrases` 대체 문장으로 200을 줄지가 7절 그림만으로는 갈림 | 결정(11/15): 지금 서비스와 같게. light는 어떤 실패든 대체 문장 200 (모놀리식 light-v5.2 "절대 예외를 던지지 않고 문장 틀로 채움"). section은 전부 연결 실패 → 503, 시간 초과 → 504, 형식 오류 → 502, 그 밖 → 대체 문장 200 (모놀리식 heavy 챕터는 failed로 끝남). 확정안 7절 반영 필요 |
 | 4 | 엔진은 503에 `Retry-After: 30`을 붙이는데, finesse-api가 그 시간만큼 기다렸다가 한 번 더 불러 light 마감 40초 중 30초를 기다렸음 | 해결: finesse-api는 엔진이 에러로 답하면 기다리지 않고 바로 화면에 넘김(Retry-After 30도 그대로). 다시 시도는 엔진에 닿지 않을 때만 1초 뒤 한 번 (Resilience4j) |
