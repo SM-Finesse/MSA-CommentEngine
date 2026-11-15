@@ -6,6 +6,10 @@ jar {
     enabled = false
 }
 
+ext {
+    resilience4jVersion = '2.4.0'   // 11/10 버전 시험에서 정한 값
+}
+
 dependencies {
     implementation project(':api')
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
@@ -14,6 +18,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'   // 헬스체크 (/actuator/health)
     implementation 'io.micrometer:micrometer-tracing-bridge-brave'           // 분산 추적
     implementation 'org.springframework.boot:spring-boot-starter-zipkin'
+    // finesse-api → 엔진 구간의 다시 시도 · 회로 차단기 (수업 13장과 같은 애너테이션 방식)
+    implementation "io.github.resilience4j:resilience4j-spring-boot4:${resilience4jVersion}"
+    implementation 'org.springframework.boot:spring-boot-starter-aspectj'   // @Retry · @CircuitBreaker 가 쓰는 AOP
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

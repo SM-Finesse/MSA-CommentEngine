@@ -12,9 +12,13 @@ spring.lifecycle.timeout-per-shutdown-phase: 10s
 ---
 spring.config.activate.on-profile: docker
 
-# 컨테이너 안에서는 관리 포트를 서비스 포트와 나눈다. 헬스체크는 :4004/actuator/health
+# 컨테이너 안에서는 관리 포트를 서비스 포트와 나눈다. 컨테이너 헬스체크는 :4004/actuator/health/readiness
 # (로컬에서는 여러 서비스를 한 PC에 띄우므로 나누지 않는다. 서비스 포트의 /actuator/health)
 management.server.port: 4004
+
+# /actuator/health/liveness · /readiness 를 켠다. 전체 헬스(/actuator/health)에는 회로 상태처럼
+# 다른 서비스 사정도 들어가서, 컨테이너 헬스체크는 자기 준비 상태(readiness)만 본다
+management.endpoint.health.probes.enabled: true
 
 # 요청을 전부 추적해 Zipkin으로 보낸다. 화면은 http://localhost:9411
 management.tracing.sampling.probability: 1.0
