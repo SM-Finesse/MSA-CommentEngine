@@ -24,7 +24,7 @@
 │       ├── ServerGenerator        라운드로빈 · 30초 제외 · 재시도 · 마감
 │       └── GenerationProtocol     ③ 어댑터. metric→stat, high→높음 같은 변환은 여기 한 곳
 ├── spring-cloud/gateway/                 ← 본체의 입구 (포트 8080). 경로 규칙은 config-repo/gateway.yml
-├── config-repo/                          ← 설정 (공통 application.yml + 서비스별 yml)
+├── config-repo/                          ← 모든 서비스의 설정 (공통 application.yml + gateway · comment-engine · finesse-api.yml)
 ├── microservices/finesse-api/            ← 칩 쪽 조합 서비스 (포트 8092). 엔진 계약으로 본체를 부른다
 │   └── com/finesse/composite/
 │       ├── LightCommentDemoController   하이라이트 판정 결과를 받아 엔진을 부르고 화면 모양으로 바꿈
@@ -59,6 +59,8 @@ $env:FINESSE_PACK_TETRIS_SERVERS = "http://localhost:9200"
 ```
 
 시작 로그에 `pack loaded: demo ...`, `pack loaded: tetris ...`가 보이면 슬롯에 칩 두 개가 꽂힌 것입니다.
+
+설정은 서비스마다 `config-repo/<서비스 이름>.yml`에 있습니다. 위처럼 `gradlew`로 띄우면 모듈 폴더에서 `../../config-repo`를 읽습니다. IntelliJ의 실행 버튼으로 띄울 때 `config-repo`를 못 찾는다고 나오면, 실행 설정의 작업 폴더를 모듈 폴더로 바꾸거나 환경변수 `CONFIG_DIR`에 `config-repo` 폴더 경로를 넣어 주세요.
 
 칩 쪽 서비스까지 거쳐 보려면 창을 하나 더 열어 finesse-api를 띄웁니다.
 
