@@ -31,7 +31,7 @@ import org.springframework.stereotype.Component;
  * <p>
  * light는 생성 서버 호출이 전부 실패해도 에러를 내지 않고 대체 문장으로 200을 돌려준다.
  * 지금 서비스(모놀리식 백엔드 light-v5.2, LlmClient.callLightComments)가 "절대 예외를 던지지 않고 문장 틀로 채운다"와 같다.
- * section은 전부 실패하면 에러 코드로 알린다 — 모놀리식 heavy 챕터가 문장 틀 없이 failed로 끝나는 것과 대응한다.
+ * section은 전부 실패하면 에러 코드로 알린다 — 지금 서비스에서 섹션 단위 코멘트가 문장 틀 없이 실패로 끝나는 것과 대응한다.
  */
 @Component
 public class GenerationRouter {
