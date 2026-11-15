@@ -209,7 +209,7 @@ docker compose restart comment-engine
 
 PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-test`의 `test` 작업). `compose` 작업은 docker compose로 본체를 띄운 뒤 gateway 경유 호출(엔진 직접, finesse-api 경유), 추적, 칩 꽂기·뽑기(`e2e/plug-test.sh`), 엔진 IP가 바뀌었을 때(`e2e/engine-ip-change.sh`), 회로 차단기 열림·닫힘(`e2e/circuit-breaker.sh`), gateway 헬스 모음(`e2e/gateway-health.sh`), 통계 넘기기(`e2e/stats-relay.sh`)를 확인합니다.
 
-모놀리식과 같은 응답인지는 `compare-monolith` 워크플로(수동 실행)로 봅니다. 실제 TETR.IO를 한 번만 부르고(러너의 기록·재생 프록시 `e2e/tetrio-replay.py`), 같은 데이터로 모놀리식 backend와 MSA(gateway 경유)의 `/api/v1/stats/{username}`를 불러 `updated_at`만 빼고 비교합니다 (`e2e/compare-stats.py`). Actions 탭 → compare-monolith → Run workflow에서 유저명을 바꿔 돌릴 수 있습니다.
+모놀리식과 같은 응답인지는 `compare-monolith` 워크플로(수동 실행)로 봅니다. 실제 TETR.IO를 한 번만 부르고(러너의 기록·재생 프록시 `e2e/tetrio-replay.py`), 같은 데이터로 모놀리식 backend와 MSA(gateway 경유)의 `/api/v1/stats/{username}`를 불러 `updated_at`만 빼고 비교합니다 (`e2e/compare-stats.py`). light(`?scope=light`)는 CI에 LLM 서버가 없어 양쪽 다 대체 문장이 나오므로, 하이라이트 지표·순서와 지표별 문장(앞의 비교 표현을 뗀 것)을 비교합니다. Actions 탭 → compare-monolith → Run workflow에서 유저명을 바꿔 돌릴 수 있습니다.
 
 ## 만들다가 발견한 것 (확정안에 반영 필요)
 
