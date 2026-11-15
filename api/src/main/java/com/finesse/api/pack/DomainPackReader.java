@@ -136,6 +136,13 @@ public final class DomainPackReader {
         blank(p.normalPos(), key, "normal_pos");
         blank(p.normalNeg(), key, "normal_neg");
         blank(p.zero(), key, "zero");
+        // 선택 칸: 없으면(null) normal 칸을 쓴다. 적었는데 비어 있으면 실수로 본다
+        if (p.weakPos() != null) {
+            blank(p.weakPos(), key, "weak_pos");
+        }
+        if (p.weakNeg() != null) {
+            blank(p.weakNeg(), key, "weak_neg");
+        }
     }
 
     private static void blank(String v, String key, String slot) {

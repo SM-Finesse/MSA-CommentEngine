@@ -126,6 +126,12 @@ class Stage1Test {
         Path p4 = copyDemo(tmp.resolve("x4"), "demo");
         replace(p4.resolve("pack.json"), "{ \"mode\": \"template\" }", "{ \"mode\": \"server\", \"servers\": [] }");
         assertMessage(p4, "demo: generation.servers is empty");
+
+        // 5. 선택 칸(weak_pos)을 적었는데 비어 있음. 안 적은 것은 괜찮다 (demo·tetris 팩이 그대로 통과 — test3_realPacksPass)
+        Path p5 = copyDemo(tmp.resolve("x5"), "demo");
+        replace(p5.resolve("metrics.json"), "\"zero\": \"A는 변화가 없습니다\"",
+                "\"zero\": \"A는 변화가 없습니다\", \"weak_pos\": \"\"");
+        assertMessage(p5, "metric_a.phrases.weak_pos is blank");
     }
 
     private void assertMessage(Path dir, String expected) {
