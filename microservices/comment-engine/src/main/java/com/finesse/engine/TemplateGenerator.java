@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class TemplateGenerator {
 
-    /** 확정안 7.1절 — 값(표시 자릿수로 반올림)이 0이면 zero, 아니면 zone과 부호로 고른다 */
+    /** 확정안 7.1절 — 값(표시 자릿수로 반올림)이 0이면 zero, 아니면 영역과 부호로 고른다 (11/15 weak 칸 추가) */
     public String sentence(DomainPack pack, MetricItem item) {
         MetricDef def = pack.metrics().get(item.metric());
         BigDecimal shown = BigDecimal.valueOf(item.value()).setScale(def.decimals(), RoundingMode.HALF_EVEN);
@@ -40,15 +40,23 @@ public class TemplateGenerator {
         return pack.manifest().noData();
     }
 
+    /**
+     * 방향은 값의 부호, 강도는 영역 ({@link Phrases} 설명의 표). 영역과 부호가 반대면 weak 칸,
+     * 팩에 weak 칸이 없으면 같은 부호의 normal 칸.
+     */
     static String phrase(Phrases p, Zone zone, int sign) {
         if (sign == 0) {
             return p.zero();
         }
         return switch (zone) {
-            case HIGH -> p.high();
-            case LOW -> p.low();
+            case HIGH -> sign > 0 ? p.high() : orElse(p.weakNeg(), p.normalNeg());
+            case LOW -> sign < 0 ? p.low() : orElse(p.weakPos(), p.normalPos());
             case NORMAL -> sign > 0 ? p.normalPos() : p.normalNeg();
         };
+    }
+
+    private static String orElse(String optional, String fallback) {
+        return optional != null ? optional : fallback;
     }
 
     private static String format(BigDecimal shown) {

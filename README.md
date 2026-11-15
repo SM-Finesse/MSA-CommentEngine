@@ -193,9 +193,10 @@ docker compose restart comment-engine
 
 | 모듈 | 시험 | 보는 것 |
 |---|---|---|
-| `api` | `Stage1Test` (7개) | DTO ↔ JSON 왕복과 snake_case, 입력 검증, 팩 리더(실제 팩 통과 · 고장 팩 4개 · 환경변수 덮어쓰기), 본체 코드에 `delta_` · `tetr` · `chapter` · `챕터` 없음 |
+| `api` | `Stage1Test` (7개) | DTO ↔ JSON 왕복과 snake_case, 입력 검증, 팩 리더(실제 팩 통과 · 고장 팩 5개 · 환경변수 덮어쓰기), 본체 코드에 `delta_` · `tetr` · `chapter` · `챕터` 없음 |
 | `comment-engine` | `CommentEngineTest` (6개) | demo(template)와 tetris(server, 가짜 생성 서버)를 엔진 계약으로 호출, 팩 목록, 에러 코드 |
 | `comment-engine` | `GenServerDownTest` (3개) | 생성 서버가 전부 꺼지면 light는 대체 문장 200, section은 503, 다른 칩은 정상 |
+| `comment-engine` | `TemplateGeneratorTest` (3개) | 대체 문장 7가지 상태(영역 × 부호, 0), weak 칸이 없는 팩은 normal 칸, 반올림한 값의 부호로 고름 |
 | `comment-engine` | `PackRegistryTest` (1개) | 잘못된 팩이 있으면 시작 실패 |
 | `finesse-api` | `FinesseApiTest` (3개) | 가짜 엔진을 세우고 계약대로 부르는지, 응답 모양과 에러 코드 변환 |
 | `finesse-api` | `EngineResilienceTest` (4개) | 엔진 503은 바로 넘김(다시 안 부름), 엔진에 닿지 않으면 한 번만 다시, 회로 열림(엔진을 안 부름)과 닫힘 |
@@ -216,3 +217,4 @@ PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-tes
 | 2 | 생성 서버 규약을 동결하면 `chapter_id` · `/heavy-chapter`가 본체 코드에 남음 → 9.1절 시험 4("chapter 0건")와 충돌 | 변환을 `GenerationProtocol` 한 곳에 모으고, 그 파일과 `api/generation/`만 시험에서 제외 |
 | 3 | 생성 서버가 전부 실패할 때 503으로 끝낼지, `phrases` 대체 문장으로 200을 줄지가 7절 그림만으로는 갈림 | 결정(11/15): 지금 서비스와 같게. light는 어떤 실패든 대체 문장 200 (모놀리식 light-v5.2 "절대 예외를 던지지 않고 문장 틀로 채움"). section은 전부 연결 실패 → 503, 시간 초과 → 504, 형식 오류 → 502, 그 밖 → 대체 문장 200 (모놀리식 heavy 챕터는 failed로 끝남). 확정안 7절 반영 필요 |
 | 4 | 엔진은 503에 `Retry-After: 30`을 붙이는데, finesse-api가 그 시간만큼 기다렸다가 한 번 더 불러 light 마감 40초 중 30초를 기다렸음 | 해결: finesse-api는 엔진이 에러로 답하면 기다리지 않고 바로 화면에 넘김(Retry-After 30도 그대로). 다시 시도는 엔진에 닿지 않을 때만 1초 뒤 한 번 (Resilience4j) |
+| 5 | 엔진이 영역(high·low)만 보고 대체 문장을 골라, 영역은 high인데 값이 음수면 "뚜렷하게 앞섭니다(-0.03)"처럼 앞뒤가 맞지 않았음. 모놀리식은 10/26 A안대로 방향은 값의 부호, 강도는 영역 (7가지) | **슬롯 규격 변경(11/15, 박덕현 결정)**: 팩 `phrases`에 `weak_pos` · `weak_neg`를 선택 칸으로 추가. 영역과 부호가 반대면 weak 칸, 없으면 같은 부호의 normal 칸. 예전 팩은 그대로 통과. 확정안 4.3절(metrics.json)과 7.1절(문장 고르기) 반영 필요 |
