@@ -39,6 +39,12 @@ jobs:
               total += t; fail += b
               print(f"{r.get('name')}: tests={t} failed={b} skipped={r.get('skipped')}")
           print(f"TOTAL tests={total} failed={fail}")
+          # 실패한 시험의 메시지를 그대로 보여 준다 (보고서 파일을 열지 않아도 원인이 보이게)
+          for f in sorted(glob.glob('**/build/test-results/test/*.xml', recursive=True)):
+              for case in ET.parse(f).getroot().iter('testcase'):
+                  for bad in list(case.findall('failure')) + list(case.findall('error')):
+                      msg = (bad.get('message') or '').strip().replace('\n', ' | ')
+                      print(f"FAILED {case.get('classname')} > {case.get('name')}: {msg[:600]}")
           PY
 
       - name: 시험 결과 올리기
