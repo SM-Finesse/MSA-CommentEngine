@@ -1,0 +1,35 @@
+// tetris 칩의 분석 서비스 — 모놀리식 backend의 calc·통계 부분 (원본 SM-Finesse/Finesse f1e06d1)
+// 의존성은 원본 backend/build.gradle에서 통계에 필요한 것을 그대로 가져오고, 헬스체크·추적 두 가지만 더했다
+apply plugin: 'org.springframework.boot'
+
+// Dockerfile이 build/libs/*.jar 하나만 집도록 일반 jar는 만들지 않는다
+jar {
+    enabled = false
+}
+
+dependencies {
+    // ── 원본 backend/build.gradle 그대로 ──
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-webclient'
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'
+    // data-eng calc 모듈(com.finesse.backend.calc) 의존성 — TETR.IO 호출 재시도·서킷브레이커, 운영 지표
+    implementation 'io.github.resilience4j:resilience4j-retry:2.4.0'
+    implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.4.0'
+    implementation 'io.micrometer:micrometer-core'
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+
+    // ── MSA에서 더한 것 ──
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'   // 헬스체크 (/actuator/health)
+    implementation 'io.micrometer:micrometer-tracing-bridge-brave'           // 분산 추적
+    implementation 'org.springframework.boot:spring-boot-starter-zipkin'
+
+    // ── 원본 시험 의존성 그대로 (lombok은 옮긴 코드가 쓰지 않아 뺐다) ──
+    testImplementation 'org.springframework.boot:spring-boot-starter-cache-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webclient-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'com.tngtech.archunit:archunit-junit5:1.5.1' // calc 모듈 경계 규칙(ArchitectureTest)
+}

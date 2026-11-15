@@ -14,6 +14,7 @@ app.dns-cache-seconds: 5
 app.health:
   comment-engine: ${app.engine-url}/actuator/health
   finesse-api: ${app.finesse-api-url}/actuator/health
+  tetris-analytics: http://localhost:7002/actuator/health
 
 spring.cloud.gateway.server.webflux:
   httpclient:
@@ -44,3 +45,4 @@ app.finesse-api-url: http://finesse-api:8092
 app.health:
   comment-engine: http://comment-engine:4004/actuator/health
   finesse-api: http://finesse-api:4004/actuator/health
+  tetris-analytics: http://tetris-analytics:4004/actuator/health
