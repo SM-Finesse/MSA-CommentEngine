@@ -31,6 +31,7 @@
 │       ├── EngineClient                 ① 호출하는 쪽 구현. 엔진 에러는 기다리지 않고 바로 화면 코드로
 │       ├── EngineHttp                   엔진 HTTP 호출. 다시 시도 · 회로 차단기 (Resilience4j, 수업 13장)
 │       └── ApiErrorHandler              엔진 에러 코드 → 화면이 받는 코드
+├── microservices/tetris-analytics/       ← tetris 칩의 분석 서비스 (포트 7002). 모놀리식 calc·통계를 고치지 않고 옮김
 ├── domain-packs/                         ← 칩 (엔진 이미지 밖)
 │   ├── tetris/   server 모드, 지표 3개만 (실제는 11개)
 │   └── demo/     template 모드
@@ -74,7 +75,7 @@ curl.exe -s -H "Content-Type: application/json" http://localhost:8092/api/v1/com
 
 ## docker compose로 한 번에 띄우기
 
-gateway, comment-engine, finesse-api, small-gen, zipkin을 같이 띄웁니다. 밖으로 여는 포트는 gateway의 8080과 추적 화면(Zipkin)의 9411입니다.
+gateway, comment-engine, finesse-api, tetris-analytics, small-gen, zipkin을 같이 띄웁니다. 밖으로 여는 포트는 gateway의 8080과 추적 화면(Zipkin)의 9411입니다.
 
 | gateway 경로 | 넘어가는 곳 |
 |---|---|
@@ -189,6 +190,7 @@ docker compose restart comment-engine
 | `finesse-api` | `EngineResilienceTest` (4개) | 엔진 503은 바로 넘김(다시 안 부름), 엔진에 닿지 않으면 한 번만 다시, 회로 열림(엔진을 안 부름)과 닫힘 |
 | `gateway` | `GatewayRoutingTests` (5개) | 엔진 경로 3개와 칩 API 경로(`/api/**`)가 넘어가는지, 규칙 밖 경로는 404 |
 | `gateway` | `GatewayHealthTests` (1개) | gateway 헬스에 하위 서비스 상태가 나오는지 (UP, 회로 열림 → DOWN, 닿지 않음 → DOWN) |
+| `tetris-analytics` | 모놀리식에서 옮긴 시험 41개 | `calc` 35개(ArchUnit 경계 시험 포함), 통계 서비스, TETR.IO 클라이언트, 사용자명, 앱 기동. 실제 TETR.IO를 부르는 2개는 기본으로 건너뜀 |
 
 PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-test`의 `test` 작업). `compose` 작업은 docker compose로 본체를 띄운 뒤 gateway 경유 호출(엔진 직접, finesse-api 경유), 추적, 칩 꽂기·뽑기(`e2e/plug-test.sh`), 엔진 IP가 바뀌었을 때(`e2e/engine-ip-change.sh`), 회로 차단기 열림·닫힘(`e2e/circuit-breaker.sh`), gateway 헬스 모음(`e2e/gateway-health.sh`)을 확인합니다.
 

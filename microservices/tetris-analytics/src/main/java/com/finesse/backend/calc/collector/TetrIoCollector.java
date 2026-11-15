@@ -1,0 +1,109 @@
+package com.finesse.backend.calc.collector;
+
+import com.finesse.backend.calc.config.CollectorProperties;
+import com.finesse.backend.calc.exception.TetrIoApiException;
+import org.springframework.stereotype.Component;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * 1년 이내 랭크 매치 수집 (설계서 3.1·3.4·3.7절).
+ * 최신 매치부터 페이지를 이어 받으며, 1년 컷오프보다 오래된 매치를 만나면 그 페이지에서 멈춘다.
+ * 현재 구간(최대 300판) 다음으로 이전 구간(최대 300판)까지 받아 profile_window_delta(11.11절)에 쓴다.
+ */
+@Component
+public class TetrIoCollector {
+
+    private final TetrIoApi api;
+    private final CollectorProperties properties;
+
+    public TetrIoCollector(TetrIoApi api, CollectorProperties properties) {
+        this.api = api;
+        this.properties = properties;
+    }
+
+    /** 분석 요청 1건 동안 모든 호출에 같은 X-Session-ID를 쓴다 (3.5절). */
+    public static String newSessionId() {
+        return "finesse-calc-" + UUID.randomUUID();
+    }
+
+    public UserSummary fetchSummary(String username, String sessionId) {
+        return api.fetchLeagueSummary(username, sessionId);
+    }
+
+    /**
+     * Cold Start(누적 10판 미만) 유저의 최근 승패 기록용 — records 첫 페이지만 1회 호출한다 (3.3절, v3.6).
+     * 1년 컷오프보다 오래된 매치는 뺀다. 호출이 실패하면 TetrIoApiException을 그대로 던진다.
+     */
+    public List<RawMatch> collectFirstPage(String username, String sessionId, Instant now) {
+        Instant cutoff = now.minus(properties.maxAgeDays(), ChronoUnit.DAYS);
+        RecordPage page = api.fetchRecentRecords(username, sessionId, null, properties.maxMatchesPerPage());
+        return page.matches().stream()
+                .filter(m -> !m.playedAt().isBefore(cutoff))
+                .toList();
+    }
+
+    public CollectionResult collectMatches(String username, String sessionId, Instant now) {
+        Instant cutoff = now.minus(properties.maxAgeDays(), ChronoUnit.DAYS);
+        int windowSize = properties.maxTotalMatches();
+        int maxMatches = windowSize;               // 300판에서 멈춘다 (3.4절, v3.10)
+        int maxPageCalls = properties.maxPages();  // 페이지 최대 3회
+
+        Map<String, RawMatch> collected = new LinkedHashMap<>(); // matchId 중복 제거, 최신순 유지
+        int requested = 0;
+        int successful = 0;
+        int failed = 0;
+        int dropped = 0;
+        boolean reachedCutoff = false;
+        String cursor = null;
+
+        while (requested < maxPageCalls && collected.size() < maxMatches) {
+            requested++;
+            RecordPage page;
+            try {
+                page = api.fetchRecentRecords(username, sessionId, cursor, properties.maxMatchesPerPage());
+            } catch (TetrIoApiException e) {
+                failed++;
+                break; // 커서가 끊기므로 다음 페이지를 이어 받을 수 없다
+            }
+            successful++;
+            dropped += page.droppedRecords();
+
+            for (RawMatch m : page.matches()) {
+                if (m.playedAt().isBefore(cutoff)) {
+                    reachedCutoff = true;
+                    break;
+                }
+                collected.putIfAbsent(m.matchId(), m);
+                if (collected.size() >= maxMatches) {
+                    break;
+                }
+            }
+            if (reachedCutoff || page.matches().isEmpty() || page.nextCursor() == null) {
+                break;
+            }
+            cursor = page.nextCursor();
+        }
+
+        List<RawMatch> all = new ArrayList<>(collected.values());
+        List<RawMatch> current = all.subList(0, Math.min(windowSize, all.size()));
+
+        return new CollectionResult(current,
+                status(successful, failed, current.size(), windowSize),
+                requested, successful, failed, dropped, reachedCutoff);
+    }
+
+    /** 3.7절 판정 순서. 300판을 다 채웠다면 실패가 있었어도 COMPLETE로 본다. */
+    CollectionStatus status(int successful, int failed, int currentSize, int windowSize) {
+        if (successful == 0) return CollectionStatus.FAILED;
+        if (failed == 0 || currentSize >= windowSize) return CollectionStatus.COMPLETE;
+        if (currentSize >= properties.minPartialMatches()) return CollectionStatus.PARTIAL;
+        return CollectionStatus.INSUFFICIENT;
+    }
+}

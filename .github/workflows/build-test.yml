@@ -32,13 +32,34 @@ jobs:
         run: |
           python3 - <<'PY'
           import glob, xml.etree.ElementTree as ET
-          total = fail = 0
+          # 수는 testcase로 센다. 다시 돌린 시험(build.gradle의 test-retry)은 묶음의 tests/failures 속성에 시도마다 잡혀서,
+          # 속성으로 세면 결국 통과한 시험도 실패로 보인다
+          total = fail = skip = flaky = 0
+          notes = []
           for f in sorted(glob.glob('**/build/test-results/test/*.xml', recursive=True)):
               r = ET.parse(f).getroot()
-              t, b = int(r.get('tests')), int(r.get('failures')) + int(r.get('errors'))
-              total += t; fail += b
-              print(f"{r.get('name')}: tests={t} failed={b} skipped={r.get('skipped')}")
-          print(f"TOTAL tests={total} failed={fail}")
+              t = b = s = 0
+              for case in r.iter('testcase'):
+                  t += 1
+                  name = f"{case.get('classname')} > {case.get('name')}"
+                  bad = list(case.findall('failure')) + list(case.findall('error'))
+                  again = list(case.findall('flakyFailure')) + list(case.findall('flakyError'))
+                  if bad:
+                      b += 1
+                      msg = (bad[0].get('message') or '').strip().replace('\n', ' | ')
+                      notes.append(f"FAILED {name}: {msg[:600]}")
+                  elif case.find('skipped') is not None:
+                      s += 1
+                  elif again:
+                      # 실패했다가 다시 돌려서 통과 — 통과로 치지만 숨기지 않는다
+                      flaky += 1
+                      msg = (again[0].get('message') or '').strip().replace('\n', ' | ')
+                      notes.append(f"FLAKY {name}: {len(again)}번 실패 후 통과: {msg[:300]}")
+              total += t; fail += b; skip += s
+              print(f"{r.get('name')}: tests={t} failed={b} skipped={s}")
+          print(f"TOTAL tests={total} failed={fail} skipped={skip} flaky={flaky}")
+          for line in notes:
+              print(line)
           PY
 
       - name: 시험 결과 올리기
