@@ -8,3 +8,8 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       - 'SPRING_APPLICATION_JSON={"tetrio":{"base-url":"http://host.docker.internal:9500/api"},"finesse":{"analytics":{"collector":{"base-url":"http://host.docker.internal:9500/api"}}}}'
+  # light 비교: CI에는 LLM 서버가 없어 모놀리식은 대체 문장 틀을 쓴다. MSA도 같은 조건이 되게 tetris 칩의 생성 서버를
+  # 닿지 않는 주소로 바꿔 칩의 대체 문장(phrases)이 나오게 한다 (small-gen 문장과 비교하지 않도록)
+  comment-engine:
+    environment:
+      - FINESSE_PACK_TETRIS_SERVERS=http://127.0.0.1:9
