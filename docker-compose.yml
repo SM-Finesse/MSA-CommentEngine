@@ -51,9 +51,7 @@ services:
     mem_limit: 512m
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      # 엔진 자체 설정은 아직 jar 안에 있다. 공통 설정만 config-repo에서 덧붙인다
-      - SPRING_CONFIG_ADDITIONAL_LOCATION=file:/config-repo/application.yml
-      - PACKS_DIR=/packs
+      - SPRING_CONFIG_LOCATION=file:/config-repo/application.yml,file:/config-repo/comment-engine.yml
       # tetris 칩의 생성 서버 주소. 실제 llm-server로 바꾸려면 이 줄만 고친다 (쉼표로 여러 대)
       - FINESSE_PACK_TETRIS_SERVERS=http://small-gen:9200
     volumes:
@@ -71,9 +69,7 @@ services:
     mem_limit: 512m
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      # finesse-api 자체 설정은 아직 jar 안에 있다. 공통 설정만 config-repo에서 덧붙인다
-      - SPRING_CONFIG_ADDITIONAL_LOCATION=file:/config-repo/application.yml
-      - ENGINE_BASE_URL=http://comment-engine:7001
+      - SPRING_CONFIG_LOCATION=file:/config-repo/application.yml,file:/config-repo/finesse-api.yml
     volumes:
       - ./config-repo:/config-repo:ro
     healthcheck: *healthcheck

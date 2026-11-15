@@ -1,24 +1,8 @@
-server:
-  port: 7001
-
+# 설정 본문은 config-repo/comment-engine.yml 에 있다 (gateway와 같은 방식, 수업 12장의 폴더 구조, Config Server는 없음).
+# 로컬 실행·시험: 작업 폴더가 이 모듈 폴더라서 ../../config-repo 를 읽는다.
+# compose: SPRING_CONFIG_LOCATION으로 /config-repo 의 두 파일을 직접 지정하므로 이 파일은 쓰이지 않는다.
 spring:
-  application:
-    name: comment-engine
-  jackson:
-    property-naming-strategy: SNAKE_CASE   # JSON은 전부 snake_case (확정안 3.3절)
-
-engine:
-  packs-dir: ${PACKS_DIR:../../domain-packs}   # compose에서는 /packs (./domain-packs:/packs:ro)
-  call-timeout-ms: 10000    # 생성 서버 1회 호출 타임아웃
-  exclude-seconds: 30       # 연결 실패 서버 제외 시간
-  max-attempts: 3
-
-# 로컬에서는 Zipkin이 없으므로 추적 기록을 만들지 않는다. compose에서는 config-repo의 docker 프로필이 1.0으로 덮어쓴다
-management:
-  tracing:
-    sampling:
-      probability: 0.0
-
-logging:
-  pattern:
-    console: "%d{HH:mm:ss.SSS} %-5level %-18logger{0} %msg%n"
+  config:
+    import:
+      - file:${CONFIG_DIR:../../config-repo}/application.yml
+      - file:${CONFIG_DIR:../../config-repo}/comment-engine.yml
