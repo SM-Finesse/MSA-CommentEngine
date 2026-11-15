@@ -211,6 +211,8 @@ PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-tes
 
 모놀리식과 같은 응답인지는 `compare-monolith` 워크플로(수동 실행)로 봅니다. 실제 TETR.IO를 한 번만 부르고(러너의 기록·재생 프록시 `e2e/tetrio-replay.py`), 같은 데이터로 모놀리식 backend와 MSA(gateway 경유)의 `/api/v1/stats/{username}`를 불러 `updated_at`만 빼고 비교합니다 (`e2e/compare-stats.py`). light(`?scope=light`)는 CI에 LLM 서버가 없어 양쪽 다 대체 문장이 나오므로, 하이라이트 지표·순서와 지표별 문장(앞의 비교 표현을 뗀 것)을 비교합니다. Actions 탭 → compare-monolith → Run workflow에서 유저명을 바꿔 돌릴 수 있습니다.
 
+실제 TETR.IO로 새 구조를 한 바퀴 돌려 보려면 `live-check` 워크플로(수동 실행)를 씁니다. 통계 → light(small-gen 문장) → 추적이 한 줄로 이어지는지 → small-gen을 멈췄을 때 팩 대체 문장까지 보고, 결과를 작업 요약에 남깁니다 (`e2e/live-check.sh`). 본체를 compose로 띄운 PC에서 `bash e2e/live-check.sh <유저명>`으로 직접 돌려도 됩니다.
+
 ## 만들다가 발견한 것 (확정안에 반영 필요)
 
 | # | 내용 | 지금은 |
