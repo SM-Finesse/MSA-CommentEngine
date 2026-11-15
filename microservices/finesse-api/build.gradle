@@ -1,11 +1,19 @@
 // 칩 쪽 조합 서비스 — 지금 백엔드 CommentService 자리. 엔진 계약으로 comment-engine을 부른다.
 apply plugin: 'org.springframework.boot'
 
+// Dockerfile이 build/libs/*.jar 하나만 집도록 일반 jar는 만들지 않는다 (수업 레포와 같음)
+jar {
+    enabled = false
+}
+
 dependencies {
     implementation project(':api')
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-restclient'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'   // 헬스체크 (/actuator/health)
+    implementation 'io.micrometer:micrometer-tracing-bridge-brave'           // 분산 추적
+    implementation 'org.springframework.boot:spring-boot-starter-zipkin'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

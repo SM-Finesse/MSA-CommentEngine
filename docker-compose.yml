@@ -1,4 +1,6 @@
-# 본체를 한 번에 띄운다: gateway → comment-engine → 생성 서버(small-gen)
+# 본체와 칩 쪽 서비스를 한 번에 띄운다
+#   gateway ─┬─ /v1/**  → comment-engine → 생성 서버(small-gen)
+#            └─ /api/** → finesse-api → comment-engine
 #
 #   ./gradlew build -x test
 #   docker compose up -d --build
@@ -37,6 +39,8 @@ services:
     depends_on:
       comment-engine:
         condition: service_healthy
+      finesse-api:
+        condition: service_healthy
       zipkin:
         condition: service_started
 
@@ -59,7 +63,26 @@ services:
       zipkin:
         condition: service_started
 
-  # 추적 화면. gateway → comment-engine 요청이 한 줄로 이어져 보인다
+  # 칩 쪽 조합 서비스 (tetris 칩). 화면이 부르는 API로, gateway의 /api/** 가 여기로 온다
+  finesse-api:
+    build: microservices/finesse-api
+    image: msa-comment-engine/finesse-api
+    mem_limit: 512m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      # finesse-api 자체 설정은 아직 jar 안에 있다. 공통 설정만 config-repo에서 덧붙인다
+      - SPRING_CONFIG_ADDITIONAL_LOCATION=file:/config-repo/application.yml
+      - ENGINE_BASE_URL=http://comment-engine:7001
+    volumes:
+      - ./config-repo:/config-repo:ro
+    healthcheck: *healthcheck
+    depends_on:
+      comment-engine:
+        condition: service_healthy
+      zipkin:
+        condition: service_started
+
+  # 추적 화면. gateway → finesse-api → comment-engine 요청이 한 줄로 이어져 보인다
   zipkin:
     image: openzipkin/zipkin:3.5.0
     mem_limit: 1024m

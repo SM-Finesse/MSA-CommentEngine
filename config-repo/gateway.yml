@@ -1,8 +1,9 @@
 server.port: 8080
 spring.application.name: gateway
 
-# 엔진 주소. 엔진 포트가 바뀌면 이 줄만 고친다
+# 넘길 곳의 주소. 포트가 바뀌면 이 줄만 고친다
 app.engine-url: http://localhost:7001
+app.finesse-api-url: http://localhost:8092
 
 # 서비스 이름의 IP를 기억하는 최대 시간(초). Docker DNS는 600초를 알려 주는데, 그대로 따르면
 # 엔진 컨테이너가 새 IP로 다시 뜬 뒤 최대 10분 동안 옛 IP로 보내 500이 난다 (DnsCacheConfiguration)
@@ -20,13 +21,15 @@ spring.cloud.gateway.server.webflux:
     predicates:
     - Path=/v1/comments/**,/v1/domains
 
-  # 칩이 자기 API 서비스를 가지면 여기에 경로를 추가한다. gateway 코드는 고치지 않는다.
-  # - id: finesse-api
-  #   uri: http://finesse-api:8092
-  #   predicates:
-  #   - Path=/api/**
+  # 칩 쪽 API 서비스 (tetris 칩의 finesse-api). 화면은 이 경로로 부른다
+  # 칩이 자기 API 서비스를 가지면 이렇게 경로를 하나 더한다. gateway 코드는 고치지 않는다
+  - id: finesse-api
+    uri: ${app.finesse-api-url}
+    predicates:
+    - Path=/api/**
 
 ---
 spring.config.activate.on-profile: docker
 
 app.engine-url: http://comment-engine:7001
+app.finesse-api-url: http://finesse-api:8092
