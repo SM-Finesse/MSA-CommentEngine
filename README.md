@@ -33,7 +33,7 @@
 │       └── ApiErrorHandler              엔진 에러 코드 → 화면이 받는 코드
 ├── microservices/tetris-analytics/       ← tetris 칩의 분석 서비스 (포트 7002). 모놀리식 calc·통계를 고치지 않고 옮김
 ├── domain-packs/                         ← 칩 (엔진 이미지 밖)
-│   ├── tetris/   server 모드, 지표 3개만 (실제는 11개)
+│   ├── tetris/   server 모드, 지표 11개 (문구는 모놀리식 대체 문장 틀에서 옮김. 손질은 C단계, 팀)
 │   └── demo/     template 모드
 ├── small-gen/SmallGenServer.java         ← 작은 생성 서버 (③ 3개 경로만). tetris 칩의 llm-server 대신
 └── try.ps1                               ← 엔진 계약으로 불러 보는 스크립트
@@ -195,7 +195,7 @@ docker compose restart comment-engine
 |---|---|---|
 | `api` | `Stage1Test` (7개) | DTO ↔ JSON 왕복과 snake_case, 입력 검증, 팩 리더(실제 팩 통과 · 고장 팩 5개 · 환경변수 덮어쓰기), 본체 코드에 `delta_` · `tetr` · `chapter` · `챕터` 없음 |
 | `comment-engine` | `CommentEngineTest` (6개) | demo(template)와 tetris(server, 가짜 생성 서버)를 엔진 계약으로 호출, 팩 목록, 에러 코드 |
-| `comment-engine` | `GenServerDownTest` (3개) | 생성 서버가 전부 꺼지면 light는 대체 문장 200, section은 503, 다른 칩은 정상 |
+| `comment-engine` | `GenServerDownTest` (5개) | 생성 서버가 전부 꺼지면 light는 대체 문장 200, section은 503, 다른 칩은 정상. tetris 칩이 하이라이트 후보 11개를 모두 받는지, 영역과 부호가 반대면 weak 문장 |
 | `comment-engine` | `TemplateGeneratorTest` (3개) | 대체 문장 7가지 상태(영역 × 부호, 0), weak 칸이 없는 팩은 normal 칸, 반올림한 값의 부호로 고름 |
 | `comment-engine` | `PackRegistryTest` (1개) | 잘못된 팩이 있으면 시작 실패 |
 | `finesse-api` | `FinesseApiTest` (3개) | 가짜 엔진을 세우고 계약대로 부르는지, 응답 모양과 에러 코드 변환 |
