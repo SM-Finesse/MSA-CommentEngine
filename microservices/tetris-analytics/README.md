@@ -37,6 +37,30 @@ tetris 칩의 분석 서비스입니다. 모놀리식 `backend/`의 계산 코�
 
 `TetrIoApiLiveTest`, `AnalyzeLiveTest`는 실제 TETR.IO를 부르는 시험이라 기본으로는 건너뜁니다. 돌리려면 `-Dtetrio.live=true -Dtetrio.username=<이름>`을 시험 JVM에 넘겨야 합니다.
 
+### 시간에 민감한 시험 2개 (작성: 정한비)
+
+옮긴 시험 41개 중 2개가 CI에서 실패했습니다. 옮긴 코드가 달라서가 아니라, 시험이 시간에 기대는 부분이 있어서입니다. **시험 코드는 고치지 않았습니다.** 고치는 것은 원본 레포에서 담당자가 하고, 고쳐지면 다시 옮깁니다.
+
+| 시험 | 실패 내용 | 원인 |
+|---|---|---|
+| `TetrioClientSharedLimiterTest` | 마지막 단언. 기다린 시간 180ms, 기대는 300ms 이상 (2번 돌려 2번 실패) | 시험이 "백엔드의 HTTP 호출이 100ms 안에 끝난다"고 가정합니다. 모놀리식에서는 같은 패키지의 LLM 쪽 WebClient 시험(`LightCommentClientTest`, `LlmClientTest`)이 먼저 돌아 Netty가 데워진 상태였습니다. 이 모듈에는 그 시험이 없어서 첫 HTTP 호출이 이 시험 안에서 일어나고, 약 220ms가 걸렸습니다 |
+| `StatsServiceBusyTest` 첫 번째 시험 | 마지막 단언. `UserNotFoundException`을 기대했는데 `ServerBusyException` (2번 돌려 1번 실패) | 수집 자리는 수집 스레드가 결과를 넘긴 **다음에** 반납됩니다 (`finally { release() }`). 시험은 결과를 받자마자 다음 요청을 보내므로, 반납보다 먼저 도착하면 BUSY가 납니다. 같은 파일의 두 번째 시험은 이 틈 때문에 50ms 간격으로 다시 시도하는데, 첫 번째 시험에는 그 처리가 없습니다 |
+
+이 모듈에서 한 것:
+
+| 무엇 | 어디 |
+|---|---|
+| 시험 JVM이 뜰 때 WebClient로 로컬 호출을 3번 해서 데움. 모놀리식과 같은 조건을 만드는 것 | `src/test/java/com/finesse/msa/testsupport/WebClientWarmup.java` (새 파일, 시험 전용) |
+| 위 2개 시험만, 실패하면 최대 2번 다시 돌림. 다른 시험은 실패하면 바로 실패 | `build.gradle`의 `retry` (Gradle `test-retry` 플러그인) |
+| 다시 돌려서 통과한 시험은 CI 로그에 `FLAKY`로 표시 | `.github/workflows/build-test.yml`의 "시험 수 세기" |
+
+원본에서 고칠 곳 (제안, 담당자 판단):
+
+| 시험 | 제안 |
+|---|---|
+| `TetrioClientSharedLimiterTest` | 두 번째 간격을 "백엔드 호출이 차례를 얻은 시각"부터 재거나, 기준에서 HTTP 호출 시간을 빼기 |
+| `StatsServiceBusyTest` 첫 번째 시험 | 마지막 확인도 두 번째 시험처럼, BUSY면 잠깐 기다렸다 다시 시도하기 |
+
 ## 실행
 
 ```bash

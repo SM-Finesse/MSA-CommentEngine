@@ -45,6 +45,11 @@ jobs:
                   for bad in list(case.findall('failure')) + list(case.findall('error')):
                       msg = (bad.get('message') or '').strip().replace('\n', ' | ')
                       print(f"FAILED {case.get('classname')} > {case.get('name')}: {msg[:600]}")
+                  # 다시 돌려서 통과한 시험 (build.gradle의 test-retry 설정) — 통과로 치지만 숨기지 않는다
+                  flaky = list(case.findall('flakyFailure')) + list(case.findall('flakyError'))
+                  if flaky:
+                      msg = (flaky[0].get('message') or '').strip().replace('\n', ' | ')
+                      print(f"FLAKY {case.get('classname')} > {case.get('name')}: {len(flaky)}번 실패 후 통과: {msg[:300]}")
           PY
 
       - name: 시험 결과 올리기

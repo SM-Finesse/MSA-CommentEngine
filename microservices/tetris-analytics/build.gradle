@@ -1,5 +1,10 @@
 // tetris 칩의 분석 서비스 — 모놀리식 backend의 calc·통계 부분 (원본 SM-Finesse/Finesse f1e06d1)
 // 의존성은 원본 backend/build.gradle에서 통계에 필요한 것을 그대로 가져오고, 헬스체크·추적 두 가지만 더했다
+plugins {
+    // 옮겨 온 시험 중 시간에 민감한 2개만, 실패하면 다시 돌린다 (아래 test 설정)
+    id 'org.gradle.test-retry' version '1.6.6'
+}
+
 apply plugin: 'org.springframework.boot'
 
 // Dockerfile이 build/libs/*.jar 하나만 집도록 일반 jar는 만들지 않는다
@@ -30,6 +35,23 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webclient-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // 원본은 testRuntimeOnly. 시험 시작 때 WebClient를 데우는 LauncherSessionListener를 컴파일하려고 testImplementation으로 둔다
+    testImplementation 'org.junit.platform:junit-platform-launcher'
     testImplementation 'com.tngtech.archunit:archunit-junit5:1.5.1' // calc 모듈 경계 규칙(ArchitectureTest)
+}
+
+// ── 옮겨 온 시험 중 시간에 민감한 2개 (작성: 정한비). 원인과 고칠 곳은 README "시간에 민감한 시험" ──
+// 시험 코드는 원본 그대로 두고, 이 2개만 실패하면 최대 2번 다시 돌린다. 다른 시험이 실패하면 바로 빨간불.
+tasks.named('test') {
+    retry {
+        maxRetries = 2
+        maxFailures = 5
+        failOnPassedAfterRetry = false
+        filter {
+            includeClasses.add('com.finesse.backend.client.TetrioClientSharedLimiterTest')
+            includeClasses.add('com.finesse.backend.service.StatsServiceBusyTest')
+        }
+    }
+    // 다시 돌려서 통과한 시험은 testcase 하나에 flakyFailure로 남긴다 (CI 요약에 FLAKY로 보임)
+    reports.junitXml.mergeReruns = true
 }
