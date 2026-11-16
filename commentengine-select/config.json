@@ -1,0 +1,25 @@
+{
+  "siteName": "CommentEngine",
+  "question": "어느 서비스를 사용하시겠습니까?",
+  "chips": [
+    {
+      "id": "finesse",
+      "name": "Finesse",
+      "description": "테트리스 플레이 분석 · 코멘트",
+      "url": "https://msa.finesse-lab.com",
+      "enabled": true,
+      "art": "blocks",
+      "color": "#7c4dff"
+    },
+    {
+      "id": "next",
+      "name": "준비 중",
+      "description": "새 서비스가 곧 추가됩니다",
+      "url": "",
+      "enabled": false,
+      "art": "soon",
+      "color": "#9e9e9e"
+    }
+  ],
+  "emptySlots": 2
+}

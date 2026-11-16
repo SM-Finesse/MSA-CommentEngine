@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CommentEngine</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="screen">
+    <header class="top">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span id="site-name" class="brand-name">CommentEngine</span>
+      </div>
+      <div class="status">
+        <span id="clock" class="clock">--:--</span>
+      </div>
+    </header>
+
+    <main class="main">
+      <h1 id="question" class="question">어느 서비스를 사용하시겠습니까?</h1>
+
+      <ul id="chips" class="chips" role="listbox" aria-labelledby="question"></ul>
+      <p id="chip-caption" class="chip-caption" aria-live="polite">&nbsp;</p>
+
+      <nav class="dock" aria-label="보조 메뉴">
+        <div class="dock-item">
+          <button id="btn-theme" class="dock-btn" type="button" aria-label="화면 테마 전환">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg>
+          </button>
+          <span class="dock-label">테마</span>
+        </div>
+        <div class="dock-item">
+          <button id="btn-reload" class="dock-btn" type="button" aria-label="목록 새로고침">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg>
+          </button>
+          <span class="dock-label">새로고침</span>
+        </div>
+      </nav>
+    </main>
+
+    <footer class="bottom">
+      <span class="hint"><kbd>←</kbd><kbd>→</kbd> 선택</span>
+      <span class="hint"><kbd>Enter</kbd> 이동</span>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
