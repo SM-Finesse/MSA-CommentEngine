@@ -1,0 +1,59 @@
+# tetris 칩 화면(frontend 컨테이너)의 Nginx 설정 — MSA에서만 쓴다.
+# 이미지(pdh20020317/finesse-frontend)의 nginx/default.conf.template 을 그대로 가져와 아래 두 가지만 더했다.
+#   1) /engine/  → 서비스 선택 화면(select-screen)으로 넘김. 칩 화면과 같은 주소 아래에서 열린다
+#   2) 화면(index.html)에 engine-logo.js 를 끼워 넣음 → 푸터에 CommentEngine 로고(누르면 /engine/)
+# 이미지 코드는 바꾸지 않는다. 이미지의 설정이 바뀌면 이 파일도 맞춰 준다.
+# ${BACKEND_UPSTREAM} 은 컨테이너 시작 시 치환된다.
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # ---- API → backend 프록시 ----
+    location /api/ {
+        proxy_pass ${BACKEND_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # heavy 뷰는 SSE(EventSource)로 챕터를 받아온다 → 버퍼링을 끄지 않으면
+        # 챕터가 하나씩 오지 않고 끝날 때 한꺼번에 도착함
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+
+        # light 코멘트는 LLM 생성이라 수십 초 걸릴 수 있음 (Nginx 기본 60초보다 넉넉하게)
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+
+    # ---- [MSA] 서비스 선택 화면 (본체 compose의 select-screen) ----
+    location = /engine {
+        absolute_redirect off;   # 터널(https) 뒤에서 http:// 주소로 돌려보내지 않게
+        return 301 /engine/;
+    }
+    location /engine/ {
+        proxy_pass http://select-screen:80/;
+        proxy_set_header Host $host;
+    }
+
+    # ---- 해시가 붙은 빌드 산출물은 오래 캐시 ----
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # ---- SPA: 없는 경로는 index.html로 (index.html 자체는 캐시하지 않음) ----
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ /index.html;
+
+        # [MSA] 푸터에 CommentEngine 로고를 붙이는 스크립트를 화면에 끼워 넣는다
+        sub_filter '</body>' '<script src="/engine-logo.js" defer></script></body>';
+        sub_filter_once on;
+    }
+}
