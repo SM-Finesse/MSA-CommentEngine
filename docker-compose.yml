@@ -11,7 +11,7 @@
 #   docker compose up -d --build
 #   curl http://localhost:8080/v1/domains
 #
-# 밖으로 여는 포트는 gateway의 8080과 추적 화면(Zipkin)의 9411이다.
+# 밖으로 여는 포트는 gateway의 8080, 추적 화면(Zipkin)의 9411, 서비스 선택 화면의 8090이다.
 
 x-healthcheck: &healthcheck
   # eclipse-temurin:25-jre 에는 wget · curl 이 없어 bash 의 /dev/tcp 로 관리 포트(4004)를 부른다
@@ -64,6 +64,21 @@ services:
     depends_on:
       zipkin:
         condition: service_started
+
+  # 엔진 첫 화면: 서비스(칩) 선택 화면 (commentengine-select/, 빌드 없는 정적 파일)
+  # 칩 목록·주소는 commentengine-select/config.json. 폴더를 그대로 꽂으므로 파일만 고치고 새로고침하면 반영된다
+  select-screen:
+    image: nginx:1.27-alpine
+    mem_limit: 64m
+    volumes:
+      - ./commentengine-select:/usr/share/nginx/html:ro
+    ports:
+      - "${ENGINE_SELECT_PORT:-8090}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/config.json"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   # 추적 화면. gateway → 칩의 서비스 → comment-engine 요청이 한 줄로 이어져 보인다
   zipkin:

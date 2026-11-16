@@ -93,9 +93,11 @@ curl.exe -s -H "Content-Type: application/json" http://localhost:8092/api/v1/com
 
 ## docker compose로 한 번에 띄우기
 
-본체(gateway, comment-engine, zipkin)와 꽂힌 칩의 서비스(tetris 칩: frontend, finesse-api, tetris-analytics, small-gen)를 같이 띄웁니다. 밖으로 여는 포트는 gateway의 8080, 추적 화면(Zipkin)의 9411, tetris 칩 화면의 8088입니다.
+본체(gateway, comment-engine, zipkin)와 꽂힌 칩의 서비스(tetris 칩: frontend, finesse-api, tetris-analytics, small-gen)를 같이 띄웁니다. 밖으로 여는 포트는 gateway의 8080, 추적 화면(Zipkin)의 9411, 서비스 선택 화면의 8090, tetris 칩 화면의 8088입니다.
 
-띄운 뒤 브라우저에서 http://localhost:8088 을 열면 운영 사이트와 같은 화면이 새 구조 위에서 돕니다 (화면 → gateway → 칩).
+띄운 뒤 브라우저에서 http://localhost:8090 을 열면 엔진 첫 화면(서비스 선택)이 나오고, Finesse를 고르면 칩 화면으로 넘어갑니다. http://localhost:8088 을 바로 열면 운영 사이트와 같은 화면이 새 구조 위에서 돕니다 (화면 → gateway → 칩).
+
+서비스 선택 화면의 칩 목록·주소는 `commentengine-select/config.json`에서 바꿉니다 (자세한 건 [commentengine-select/README.md](commentengine-select/README.md)). 지금 Finesse 주소는 `https://msa.finesse-lab.com`이라, 학교 안에서 터널 없이 시연할 때는 `http://localhost:8088`로 바꾸면 됩니다.
 
 `docker-compose.yml`에는 본체만 있습니다. 칩의 서비스는 칩 폴더의 `compose.yml`에 있고, 루트의 `.env`(`COMPOSE_FILE`)가 둘을 겹쳐 줍니다. 그래서 명령은 예전과 같습니다.
 
