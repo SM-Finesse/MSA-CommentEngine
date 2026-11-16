@@ -1,10 +1,13 @@
 /* tetris 칩 화면 푸터에 CommentEngine 로고를 붙인다 (MSA에서만, default.conf.template 이 끼워 넣음).
-   누르면 서비스 선택 화면(/engine/)으로 간다. 화면 이미지 코드는 바꾸지 않는다.
+   누르면 서비스 선택 화면으로 간다 (TETRIS_ENGINE_HOME_URL, 비우면 /engine/). 화면 이미지 코드는 바꾸지 않는다.
    화면은 React라 페이지를 옮길 때 푸터가 다시 그려지므로, 바뀔 때마다 로고가 있는지 확인해 다시 붙인다. */
 (function () {
   'use strict';
 
-  var HOME = '/engine/';
+  // 로고가 갈 주소: compose 의 TETRIS_ENGINE_HOME_URL (nginx가 window.CE_ENGINE_HOME 으로 넣어 줌).
+  // {host} 는 지금 접속한 주소로 바뀐다 (12번에선 localhost, 실습실 다른 PC에선 192.168.0.112). 비어 있으면 /engine/
+  var RAW = String(window.CE_ENGINE_HOME || '').trim();
+  var HOME = RAW ? RAW.replace(/\{host\}/g, location.hostname) : '/engine/';
   var ID = 'ce-engine-home';
 
   var style = document.createElement('style');

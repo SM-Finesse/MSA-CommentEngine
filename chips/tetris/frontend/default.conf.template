@@ -53,7 +53,8 @@ server {
         try_files $uri $uri/ /index.html;
 
         # [MSA] 푸터에 CommentEngine 로고를 붙이는 스크립트를 화면에 끼워 넣는다
-        sub_filter '</body>' '<script src="/engine-logo.js" defer></script></body>';
+        # ENGINE_HOME_URL(compose 환경 변수)은 컨테이너 시작 때 치환된다. 비어 있으면 로고는 /engine/ 으로 간다
+        sub_filter '</body>' '<script>window.CE_ENGINE_HOME="${ENGINE_HOME_URL}";</script><script src="/engine-logo.js" defer></script></body>';
         sub_filter_once on;
     }
 }

@@ -6,7 +6,7 @@
       "id": "finesse",
       "name": "Finesse",
       "description": "테트리스 플레이 분석 · 코멘트",
-      "url": "https://msa.finesse-lab.com",
+      "url": "http://{host}:8088",
       "enabled": true,
       "art": "blocks",
       "color": "#7c4dff"
