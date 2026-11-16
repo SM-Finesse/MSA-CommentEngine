@@ -112,6 +112,21 @@ class CommentEngineTest {
         assertThat(mapper.readTree(GEN.received.getFirst().body()).at("/chapter_id").asString()).isEqualTo("attack");
     }
 
+    /** 생성 서버가 에러(500)로만 답하면 no_data 문장으로 덮지 않고 502로 알린다 — 부르는 칩이 그 섹션을 실패로 처리한다 */
+    @Test
+    void 생성서버가_에러로_답하면_섹션은_502() throws Exception {
+        GEN.sectionStatus = 500;
+        try {
+            var resp = Http.post(port, "/v1/comments/section", """
+                    {"domain":"tetris","section":"attack","data":{"delta_app":0.05},"deadline_ms":50000}""");
+
+            assertError(resp, 502, "LLM_FORMAT");
+            assertThat(GEN.received).hasSize(3); // 다른 서버로 다시 시도한 뒤(engine.max-attempts) 포기
+        } finally {
+            GEN.sectionStatus = 0;
+        }
+    }
+
     @Test
     void 꽂힌_팩_목록() throws Exception {
         JsonNode body = json(Http.get(port, "/v1/domains"), 200);

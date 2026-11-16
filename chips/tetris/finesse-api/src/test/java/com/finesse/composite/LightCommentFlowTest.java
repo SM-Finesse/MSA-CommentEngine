@@ -258,8 +258,6 @@ class LightCommentFlowTest {
         assertThat(missing.statusCode()).isEqualTo(400);
         assertThat(JSON.readTree(missing.body())).isEqualTo(JSON.readTree(
                 "{\"error_code\":\"BAD_REQUEST\",\"message\":\"필수 파라미터가 없습니다: scope\"}"));
-
-        assertThat(get("/api/v1/comment/alice?scope=heavy").statusCode()).as("heavy는 E단계").isEqualTo(501);
     }
 
     private HttpResponse<String> get(String pathAndQuery) throws IOException, InterruptedException {

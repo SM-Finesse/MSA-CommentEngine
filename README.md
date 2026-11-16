@@ -6,7 +6,7 @@
 
 작업 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 봐 주세요.
 
-> 프로토타입 단계입니다. 화면 경로 중 통계(`/api/v1/stats/{username}`)와 light 코멘트까지 새 구조로 옮겼고, heavy 코멘트는 아직입니다.
+> 프로토타입 단계입니다. 화면이 부르는 경로 셋(통계, light 코멘트, heavy 코멘트)을 모두 새 구조로 옮겼습니다. 생성 서버는 아직 시연용(small-gen)이고, 실제 llm-server 연결과 화면 전환은 F단계입니다.
 > 슬롯의 기준 문서는 「MSA 슬롯 구현 확정안」입니다 (레포에는 아직 없음).
 
 ## 무엇이 어디에 있나
@@ -40,6 +40,8 @@
 │   │   ├── finesse-api/          화면이 부르는 API (포트 8092). 엔진 계약으로 본체를 부른다
 │   │   │   └── com/finesse/composite/
 │   │   │       ├── LightCommentService   stats → 하이라이트 고르기 → 엔진 light → 화면 모양 (+ 캐시)
+│   │   │       ├── HeavyCommentService   stats → 챕터 8개를 엔진 section으로 → 끝나는 대로 SSE로 (+ 성공 챕터 캐시)
+│   │   │       ├── HeavyChapterData      stats에서 챕터별 생성 서버 입력(data)을 만듦
 │   │   │       ├── StatsRelayController  통계를 tetris-analytics에 그대로 넘김
 │   │   │       ├── EngineClient          ① 호출하는 쪽 구현. 엔진 에러는 기다리지 않고 바로 화면 코드로
 │   │   │       ├── EngineHttp            엔진 HTTP 호출. 다시 시도 · 회로 차단기 (Resilience4j, 수업 13장)
@@ -103,7 +105,7 @@ curl.exe -s -H "Content-Type: application/json" http://localhost:8092/api/v1/com
 |---|---|
 | `GET /api/v1/stats/{username}` | finesse-api가 tetris-analytics에 그대로 넘기고 응답도 그대로 돌려줌. 모놀리식과 같은 경로·응답 |
 | `GET /api/v1/comment/{username}?scope=light` | finesse-api: stats(tetris-analytics) → calc가 고른 하이라이트 → 엔진 light(tetris 칩) → 모놀리식과 같은 모양 `{light_summary, highlights[{stat, sentence}]}`. 캐시 10분 |
-| `GET /api/v1/comment/{username}?scope=heavy` | 아직 없음 (E단계, 501) |
+| `GET /api/v1/comment/{username}?scope=heavy` | finesse-api: SSE 스트림. stats(tetris-analytics) → 챕터 8개를 엔진 section(tetris 칩)으로 → 끝나는 대로 `chapter` 이벤트, 마지막에 `done`. 이벤트 모양은 모놀리식과 같음. 성공한 챕터만 10분 캐시 |
 
 ```bash
 ./gradlew build -x test
@@ -125,7 +127,20 @@ curl http://localhost:8080/api/v1/comment-demo/domains
 curl http://localhost:8080/api/v1/stats/<TETR.IO 이름>
 ```
 
-통계는 실제 TETR.IO를 부릅니다 (처음 조회는 수집에 10초 안팎, 이후 10분은 캐시).
+```bash
+curl -N "http://localhost:8080/api/v1/comment/<TETR.IO 이름>?scope=heavy"
+```
+
+통계는 실제 TETR.IO를 부릅니다 (처음 조회는 수집에 10초 안팎, 이후 10분은 캐시). heavy는 `-N`을 붙여야 챕터가 오는 대로 보입니다.
+
+heavy가 모놀리식과 다른 점 (화면이 받는 이벤트 모양은 같음)
+
+| 항목 | 모놀리식 | 여기 |
+|---|---|---|
+| `attempt_count` | 챕터마다 있음 | 엔진을 거친 챕터에는 없음 (엔진이 다시 시도한 횟수를 알려 주지 않음. light와 같음) |
+| 전체 마감 | LLM 서버 대수를 보고 60초(2대 이상)·120초(1대) | 칩 설정 `app.endpoint.heavy-seconds` (기본 60). 생성 서버가 1대면 120으로 |
+| 한 번에 부르는 챕터 수 | LLM 서버마다 한 번에 하나 (서버별 대기열) | 칩 설정 `app.heavy.parallel-sections` (기본 2). 엔진에는 서버별 대기열이 없음 |
+| 틀린 유저명 | 스트림을 열기 전에 400 | 스트림을 연 뒤 `error` 이벤트 (`INVALID_USERNAME`). 유저명 검사가 tetris-analytics에 있어서 |
 
 추적 화면은 http://localhost:9411 입니다. gateway → finesse-api → comment-engine 요청이 한 줄로 이어져 보입니다.
 
@@ -214,13 +229,14 @@ docker compose restart comment-engine gateway
 | 모듈 | 시험 | 보는 것 |
 |---|---|---|
 | `api` | `Stage1Test` (7개) | DTO ↔ JSON 왕복과 snake_case, 입력 검증, 팩 리더(실제 팩 통과 · 고장 팩 6개 · 환경변수 덮어쓰기), 본체 코드와 본체 설정(`api`, `comment-engine`, `gateway`, `config-repo`)에 `delta_` · `tetr` · `chapter` · `챕터` · `finesse-api` 없음 |
-| `comment-engine` | `CommentEngineTest` (6개) | demo(template)와 tetris(server, 가짜 생성 서버)를 엔진 계약으로 호출, 팩 목록, 에러 코드 |
+| `comment-engine` | `CommentEngineTest` (7개) | demo(template)와 tetris(server, 가짜 생성 서버)를 엔진 계약으로 호출, 팩 목록, 에러 코드, 생성 서버가 에러로 답하면 section은 502 |
 | `comment-engine` | `GenServerDownTest` (5개) | 생성 서버가 전부 꺼지면 light는 대체 문장 200, section은 503, 다른 칩은 정상. tetris 칩이 하이라이트 후보 11개를 모두 받는지, 영역과 부호가 반대면 weak 문장 |
 | `comment-engine` | `TemplateGeneratorTest` (3개) | 대체 문장 7가지 상태(영역 × 부호, 0), weak 칸이 없는 팩은 normal 칸, 반올림한 값의 부호로 고름 |
 | `comment-engine` | `PackRegistryTest` (1개) | 잘못된 팩이 있으면 시작 실패 |
 | `finesse-api` | `FinesseApiTest` (3개) | 가짜 엔진을 세우고 계약대로 부르는지, 응답 모양과 에러 코드 변환 |
 | `finesse-api` | `EngineResilienceTest` (4개) | 엔진 503은 바로 넘김(다시 안 부름), 엔진에 닿지 않으면 한 번만 다시, 회로 열림(엔진을 안 부름)과 닫힘 |
 | `finesse-api` | `LightCommentFlowTest` (9개) | 콜드스타트 문장, 엔진 계약으로 부르기(값은 화면의 원값), 캐시(같은 stats면 꺼냄, stats가 새로 계산되면 다시), 대체 문장·3개 미만은 캐시 안 함, 지표 고르기 규칙, 고른 지표가 없으면 엔진 안 부름, stats 에러 그대로, scope 검사 |
+| `finesse-api` | `HeavyCommentFlowTest` (9개) | SSE 이벤트 모양(start → chapter 8건 → done), 엔진에 넘기는 챕터별 data(모놀리식과 같은 칸), 콜드스타트 8챕터 failed, 상대가 없을 때 라이벌 고정 문구, 엔진 에러 챕터만 failed·시간 초과는 timeout, 성공 챕터만 캐시, 생성 서버 대체 문장은 캐시 안 함(rivals 예외), 전체 마감에 timeout으로 채워 정확히 8건, stats 실패는 error 이벤트 |
 | `finesse-api` | `StatsRelayTest` (7개) | 통계를 바이트까지 그대로 넘김, 경로·쿼리를 받은 그대로, 에러 응답(404·503 + Retry-After)도 그대로, 닿지 않으면 한 번만 다시, 계속 안 되면 502 `TETRIO_API_UNAVAILABLE`, 답이 늦으면 다시 안 부름, 회로 열림 |
 | `gateway` | `GatewayRoutingTests` (6개) | 엔진 경로 3개가 넘어가는지, 시험용 칩 파일이 들고 온 경로 2개가 칩의 서비스로 넘어가는지, 규칙 밖 경로는 404 |
 | `gateway` | `GatewayHealthTests` (1개) | gateway 헬스에 본체와 칩의 서비스 상태가 같이 나오는지 (UP, 회로 열림 → DOWN, 닿지 않음 → DOWN) |
@@ -229,9 +245,9 @@ docker compose restart comment-engine gateway
 
 PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-test`의 `test` 작업). `compose` 작업은 docker compose로 본체와 tetris 칩을 띄운 뒤 gateway 경유 호출(엔진 직접, finesse-api 경유), 추적, 칩 꽂기·뽑기(`e2e/plug-test.sh`), 엔진 IP가 바뀌었을 때(`e2e/engine-ip-change.sh`), 회로 차단기 열림·닫힘(`e2e/circuit-breaker.sh`), gateway 헬스 모음(`e2e/gateway-health.sh`), 통계 넘기기(`e2e/stats-relay.sh`)를 확인합니다.
 
-모놀리식과 같은 응답인지는 `compare-monolith` 워크플로(수동 실행)로 봅니다. 실제 TETR.IO를 한 번만 부르고(러너의 기록·재생 프록시 `e2e/tetrio-replay.py`), 같은 데이터로 모놀리식 backend와 MSA(gateway 경유)의 `/api/v1/stats/{username}`를 불러 `updated_at`만 빼고 비교합니다 (`e2e/compare-stats.py`). light(`?scope=light`)는 CI에 LLM 서버가 없어 양쪽 다 대체 문장이 나오므로, 하이라이트 지표·순서와 지표별 문장(앞의 비교 표현을 뗀 것)을 비교합니다. Actions 탭 → compare-monolith → Run workflow에서 유저명을 바꿔 돌릴 수 있습니다.
+모놀리식과 같은 응답인지는 `compare-monolith` 워크플로(수동 실행)로 봅니다. 실제 TETR.IO를 한 번만 부르고(러너의 기록·재생 프록시 `e2e/tetrio-replay.py`), 같은 데이터로 모놀리식 backend와 MSA(gateway 경유)의 `/api/v1/stats/{username}`를 불러 `updated_at`만 빼고 비교합니다 (`e2e/compare-stats.py`). light(`?scope=light`)는 CI에 LLM 서버가 없어 양쪽 다 대체 문장이 나오므로, 하이라이트 지표·순서와 지표별 문장(앞의 비교 표현을 뗀 것)을 비교합니다. heavy(`?scope=heavy`)는 양쪽 다 챕터가 failed로 오므로, 이벤트 순서와 챕터별 status·footnote, done, error 이벤트를 비교합니다. Actions 탭 → compare-monolith → Run workflow에서 유저명을 바꿔 돌릴 수 있습니다.
 
-실제 TETR.IO로 새 구조를 한 바퀴 돌려 보려면 `live-check` 워크플로(수동 실행)를 씁니다. 통계 → light(small-gen 문장) → 추적이 한 줄로 이어지는지 → small-gen을 멈췄을 때 팩 대체 문장까지 보고, 결과를 작업 요약에 남깁니다 (`e2e/live-check.sh`). 본체를 compose로 띄운 PC에서 `bash e2e/live-check.sh <유저명>`으로 직접 돌려도 됩니다.
+실제 TETR.IO로 새 구조를 한 바퀴 돌려 보려면 `live-check` 워크플로(수동 실행)를 씁니다. 통계 → light(small-gen 문장) → 추적이 한 줄로 이어지는지 → heavy SSE(챕터 8건) → small-gen을 멈췄을 때(light는 팩 대체 문장, heavy는 챕터 failed)까지 보고, 결과를 작업 요약에 남깁니다 (`e2e/live-check.sh`). 본체를 compose로 띄운 PC에서 `bash e2e/live-check.sh <유저명>`으로 직접 돌려도 됩니다.
 
 ## 만들다가 발견한 것 (확정안에 반영 필요)
 
@@ -239,7 +255,8 @@ PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-tes
 |---|---|---|
 | 1 | 지금 llm-server는 zone을 **`높음` · `보통` · `낮음`**으로 받는데, 엔진 계약은 `high` · `normal` · `low`. 확정안 5절 변환 표에 zone이 빠져 있음 | `GenerationProtocol`에서 변환 |
 | 2 | 생성 서버 규약을 동결하면 `chapter_id` · `/heavy-chapter`가 본체 코드에 남음 → 9.1절 시험 4("chapter 0건")와 충돌 | 변환을 `GenerationProtocol` 한 곳에 모으고, 그 파일과 `api/generation/`만 시험에서 제외 |
-| 3 | 생성 서버가 전부 실패할 때 503으로 끝낼지, `phrases` 대체 문장으로 200을 줄지가 7절 그림만으로는 갈림 | 결정(11/15): 지금 서비스와 같게. light는 어떤 실패든 대체 문장 200 (모놀리식 light-v5.2 "절대 예외를 던지지 않고 문장 틀로 채움"). section은 전부 연결 실패 → 503, 시간 초과 → 504, 형식 오류 → 502, 그 밖 → 대체 문장 200 (모놀리식 heavy 챕터는 failed로 끝남). 확정안 7절 반영 필요 |
+| 3 | 생성 서버가 전부 실패할 때 503으로 끝낼지, `phrases` 대체 문장으로 200을 줄지가 7절 그림만으로는 갈림 | 결정(11/15): 지금 서비스와 같게. light는 어떤 실패든 대체 문장 200 (모놀리식 light-v5.2 "절대 예외를 던지지 않고 문장 틀로 채움"). section은 연결 실패 → 503, 시간 초과 → 504, 형식 오류 → 502. **11/16 변경**: 생성 서버가 에러(5xx 등)로 답한 경우도 대체 문장 200이 아니라 502 — section의 대체 문장은 `no_data`("값이 충분하지 않다")뿐이라 생성 서버 오류를 그 문장으로 덮으면 사실과 다른 말이 되고, 부르는 칩이 그 챕터를 failed로 처리할 수 없었음 (모놀리식 heavy 챕터는 failed로 끝남). 확정안 7절 반영 필요 |
 | 4 | 엔진은 503에 `Retry-After: 30`을 붙이는데, finesse-api가 그 시간만큼 기다렸다가 한 번 더 불러 light 마감 40초 중 30초를 기다렸음 | 해결: finesse-api는 엔진이 에러로 답하면 기다리지 않고 바로 화면에 넘김(Retry-After 30도 그대로). 다시 시도는 엔진에 닿지 않을 때만 1초 뒤 한 번 (Resilience4j) |
 | 5 | 엔진이 영역(high·low)만 보고 대체 문장을 골라, 영역은 high인데 값이 음수면 "뚜렷하게 앞섭니다(-0.03)"처럼 앞뒤가 맞지 않았음. 모놀리식은 10/26 A안대로 방향은 값의 부호, 강도는 영역 (7가지) | **슬롯 규격 변경(11/15, 박덕현 결정)**: 팩 `phrases`에 `weak_pos` · `weak_neg`를 선택 칸으로 추가. 영역과 부호가 반대면 weak 칸, 없으면 같은 부호의 normal 칸. 예전 팩은 그대로 통과. 확정안 4.3절(metrics.json)과 7.1절(문장 고르기) 반영 필요 |
 | 6 | 칩이 팩 폴더(`domain-packs/<id>/`)뿐이라, 칩의 서비스·설정·gateway 경로가 본체 쪽 폴더와 본체 설정(`config-repo/gateway.yml`)에 흩어져 있었음. "칩을 꽂는다"가 폴더 하나로 끝나지 않았음 | **칩 = `chips/<id>/` 폴더 하나 (11/16, 박덕현 결정)**. 팩은 `chips/<id>/pack/`으로 (② 팩 규격의 **위치**만 바뀜, 파일 내용·검사는 그대로). 칩의 gateway 경로·헬스는 칩이 `gateway.yml`로 들고 옴. 확정안 4장(팩 위치) 반영 필요 |
+| 7 | 모놀리식 `LlmClient`는 LLM 서버마다 요청을 한 번에 하나씩 보냈다 (서버별 대기열, light가 heavy보다 먼저). 엔진의 `ServerGenerator`에는 이 대기열이 없어 요청을 받는 대로 생성 서버에 동시에 보낸다 | heavy는 칩에서 한 번에 부르는 section 수를 묶어 둠 (`app.heavy.parallel-sections`). light와 heavy가 겹치거나 여러 사람이 같이 부를 때는 묶이지 않음. **실제 llm-server를 붙이기(F단계) 전에 엔진에 서버별 대기열을 넣을지 정해야 함** |

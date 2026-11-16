@@ -31,7 +31,9 @@ import org.springframework.stereotype.Component;
  * <p>
  * light는 생성 서버 호출이 전부 실패해도 에러를 내지 않고 대체 문장으로 200을 돌려준다.
  * 지금 서비스(모놀리식 백엔드 light-v5.2, LlmClient.callLightComments)가 "절대 예외를 던지지 않고 문장 틀로 채운다"와 같다.
- * section은 전부 실패하면 에러 코드로 알린다 — 지금 서비스에서 섹션 단위 코멘트가 문장 틀 없이 실패로 끝나는 것과 대응한다.
+ * section은 생성 서버 호출이 실패하면 대체 문장 없이 에러 코드로 알린다 — 지금 서비스에서 섹션 단위 코멘트가 문장 틀 없이
+ * 실패로 끝나는 것과 대응한다. light는 지표마다 팩의 phrases가 있어 뜻이 맞는 대체 문장을 만들 수 있지만, section은 넣을 수 있는
+ * 문장이 no_data("값이 충분하지 않다")뿐이라 생성 서버 오류를 그 문장으로 덮으면 사실과 다른 말을 하게 된다.
  */
 @Component
 public class GenerationRouter {
@@ -116,24 +118,20 @@ public class GenerationRouter {
         if (o.ok()) {
             return new SectionCommentResult(req.section(), o.value().text(), o.value().fallback(), versions);
         }
-        throwIfAllFailed(List.of(o.failure()));
-        return new SectionCommentResult(req.section(), template.section(pack), true, versions);
+        throw sectionFailure(o.failure());
     }
 
     /**
-     * 모든 호출이 실패했을 때: 전부 연결 실패 → 503, 하나라도 시간 초과 → 504, 전부 형식 오류 → 502.
-     * 그 밖(서버 5xx 등)은 에러 대신 대체 문장으로 응답한다.
+     * section 호출이 끝내 실패했을 때의 에러 코드: 연결 실패 → 503, 시간 초과 → 504,
+     * 답은 왔는데 쓸 수 없음(형식 오류, 생성 서버가 5xx 등 에러로 답함) → 502.
      */
-    private static void throwIfAllFailed(List<Failure> failures) {
-        if (failures.stream().allMatch(f -> f == Failure.UNAVAILABLE)) {
-            throw new EngineException(EngineErrorCode.LLM_UNAVAILABLE, "no generation server reachable");
-        }
-        if (failures.contains(Failure.TIMEOUT)) {
-            throw new EngineException(EngineErrorCode.LLM_TIMEOUT, "deadline exceeded");
-        }
-        if (failures.stream().allMatch(f -> f == Failure.FORMAT)) {
-            throw new EngineException(EngineErrorCode.LLM_FORMAT, "generation server returned bad format");
-        }
+    private static EngineException sectionFailure(Failure failure) {
+        return switch (failure) {
+            case UNAVAILABLE -> new EngineException(EngineErrorCode.LLM_UNAVAILABLE, "no generation server reachable");
+            case TIMEOUT -> new EngineException(EngineErrorCode.LLM_TIMEOUT, "deadline exceeded");
+            case FORMAT -> new EngineException(EngineErrorCode.LLM_FORMAT, "generation server returned bad format");
+            case ERROR -> new EngineException(EngineErrorCode.LLM_FORMAT, "generation server answered with an error");
+        };
     }
 
     private static <T> Outcome<T> join(Future<Outcome<T>> f) {

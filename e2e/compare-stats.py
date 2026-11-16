@@ -11,6 +11,12 @@
      값 표기는 delta_comeback만 다를 수 있다 (모놀리식은 원값, 칩은 2자리)
    - 기본 코멘트: 콜드스타트 안내는 글자까지 같아야 하고, 나머지는 문체가 달라(모놀리식 끝말 바꾸기) 비교하지 않는다
    - attempt_count는 MSA에 없다 (알려진 차이)
+3. GET /api/v1/comment/{username}?scope=heavy (SSE)
+   CI에는 LLM 서버가 없어서 양쪽 다 챕터가 failed로 온다 (상대가 없을 때의 라이벌 고정 문구만 ok).
+   - 이벤트 모양: start(total_chapters) → chapter 정확히 8건(chapter_id 중복 없음) → done
+   - 챕터별 status와 footnote, done의 completed와 failed_chapters가 같아야 한다
+   - stats 실패(없는 유저 등)는 error 이벤트의 error_code · message가 같아야 한다
+   - attempt_count는 비교하지 않는다 (MSA는 엔진을 거친 챕터에 없음, 알려진 차이). elapsed_ms도 비교하지 않는다
 
 환경변수: USERS (쉼표로), MONO (기본 http://localhost:8081), MSA (기본 http://localhost:8080),
           PROXY (기본 http://localhost:9500)
@@ -122,11 +128,72 @@ def compare_light(u):
     return same, notes, out
 
 
+def sse(url):
+    """SSE 스트림을 끝까지 읽어 (상태, [(이벤트 이름, data)], 걸린 시간)"""
+    status, body, took = get(url)
+    events = []
+    for block in body.decode("utf-8", errors="replace").split("\n\n"):
+        name, data = None, ""
+        for line in block.split("\n"):
+            if line.startswith("event:"):
+                name = line[6:].strip()
+            elif line.startswith("data:"):
+                data += line[5:].strip()
+        if name:
+            try:
+                events.append((name, json.loads(data)))
+            except ValueError:
+                events.append((name, data))
+    return status, events, took
+
+
+def heavy_view(events):
+    """비교할 것만 추린다"""
+    chapters = {d.get("chapter_id"): (d.get("status"), d.get("footnote")) for n, d in events if n == "chapter"}
+    done = next((d for n, d in events if n == "done"), None)
+    error = next((d for n, d in events if n == "error"), None)
+    return {
+        "names": [n for n, _ in events if n != "chapter"],
+        "chapter_count": sum(1 for n, _ in events if n == "chapter"),
+        "chapters": chapters,
+        "done": None if done is None else {"completed": done.get("completed"),
+                                           "failed_chapters": sorted(done.get("failed_chapters") or [])},
+        "error": None if error is None else {"error_code": error.get("error_code"), "message": error.get("message")},
+        "start": next((d for n, d in events if n == "start"), None),
+    }
+
+
+def compare_heavy(u):
+    """(같은지, 메모 목록, 출력할 줄 목록)"""
+    s1, e1, t1 = sse(f"{MONO}/api/v1/comment/{u}?scope=heavy")
+    s2, e2, t2 = sse(f"{MSA}/api/v1/comment/{u}?scope=heavy")
+    out = [f"  heavy: 모놀리식 HTTP {s1} {t1:.1f}s / MSA HTTP {s2} {t2:.1f}s"]
+    if s1 != s2:
+        return False, ["상태 코드가 다름"], out
+    v1, v2 = heavy_view(e1), heavy_view(e2)
+    notes = []
+    for key, label in (("names", "이벤트 순서"), ("start", "start"), ("chapter_count", "chapter 건수"),
+                       ("chapters", "챕터 status · footnote"), ("done", "done"), ("error", "error 이벤트")):
+        if v1[key] != v2[key]:
+            notes.append(f"{label}가 다름")
+            out.append(f"    {label}: 모놀리식 {json.dumps(v1[key], ensure_ascii=False)}")
+            out.append(f"    {'':>{len(label)}}  MSA      {json.dumps(v2[key], ensure_ascii=False)}")
+    if v2["error"] is None and (v2["chapter_count"] != 8 or len(v2["chapters"]) != 8):
+        notes.append(f"MSA chapter가 정확히 8건이 아님 ({v2['chapter_count']}건)")
+    if v2["error"] is not None:
+        out.append(f"    error: {v2['error']['error_code']}")
+    else:
+        statuses = [v2["chapters"][c][0] for c in v2["chapters"]]
+        out.append("    챕터: " + ", ".join(f"{c}={v2['chapters'][c][0]}" for c in v2["chapters"]))
+        out.append(f"    done: {json.dumps(v2['done'], ensure_ascii=False)} (ok {statuses.count('ok')})")
+    return not notes, notes, out
+
+
 def main():
     if not USERS:
         print("USERS가 비어 있음")
         return 2
-    rows, light_rows, bad = [], [], 0
+    rows, light_rows, heavy_rows, bad = [], [], [], 0
     for u in USERS:
         c0 = counts()
         s1, b1, t1 = get(f"{MONO}/api/v1/stats/{u}")
@@ -166,6 +233,13 @@ def main():
         if not lsame:
             bad += 1
 
+        hsame, hnotes, hout = compare_heavy(u)
+        print("\n".join(hout))
+        print(f"  heavy: {'같음' if hsame else '다름'}" + (f" ({'; '.join(hnotes)})" if hnotes else ""))
+        heavy_rows.append((u, "같음" if hsame else "다름", "; ".join(hnotes)))
+        if not hsame:
+            bad += 1
+
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
         with open(summary, "a", encoding="utf-8") as f:
@@ -178,8 +252,13 @@ def main():
             for u, v, n in light_rows:
                 f.write(f"| `{u}` | {v} | {n or '-'} |\n")
             f.write("\n하이라이트 지표·순서와 지표별 문장(비교 표현을 뗀 것)을 본다. 기본 코멘트는 문체가 달라 비교하지 않는다\n")
-    total = len(USERS) * 2
-    print(f"\n{total - bad}/{total} 같음 (stats {len(USERS)}건 + light {len(USERS)}건)")
+            f.write("\n## heavy SSE (양쪽 다 LLM 서버 없음)\n\n| 유저 | 결과 | 메모 |\n|---|---|---|\n")
+            for u, v, n in heavy_rows:
+                f.write(f"| `{u}` | {v} | {n or '-'} |\n")
+            f.write("\n이벤트 순서, 챕터별 status · footnote, done의 completed · failed_chapters, error 이벤트를 본다. "
+                    "attempt_count와 elapsed_ms는 비교하지 않는다\n")
+    total = len(USERS) * 3
+    print(f"\n{total - bad}/{total} 같음 (stats {len(USERS)}건 + light {len(USERS)}건 + heavy {len(USERS)}건)")
     return 1 if bad else 0
 
 

@@ -14,6 +14,7 @@ engine:
   # 시간 제한. 수업은 @TimeLimiter를 쓰지만 finesse-api는 WebMVC(동기)라 호출 타임아웃으로 대신한다
   connect-timeout-ms: 3000
   read-timeout-ms: 45000    # light 마감(40초)보다 조금 길게. 엔진이 마감 안에 답하지 않을 때의 안전망
+                            # (heavy section 한 번은 엔진에서 길어야 call-timeout 10초 × 3번 = 30초)
 
 analytics:
   base-url: ${ANALYTICS_BASE_URL:http://localhost:7002}   # tetris-analytics 주소 (통계)
@@ -23,6 +24,15 @@ analytics:
 app:
   endpoint:
     light-seconds: 40     # 백엔드 app.endpoint.light-seconds — 남은 시간을 deadline_ms로 넘긴다
+    # heavy 8챕터 전체 마감 (stats가 끝난 뒤부터). 모놀리식은 LLM 서버 대수를 보고 60초(2대 이상) · 120초(1대)를 골랐다.
+    # 여기서는 생성 서버 대수를 엔진만 알아서 이 값으로 정한다 — 생성 서버가 1대면 120으로 바꾼다
+    heavy-seconds: 60
+  heavy:
+    # 한 번에 부르는 section 수. 모놀리식은 LLM 서버마다 한 번에 하나씩 보냈다 — 생성 서버 대수와 같게 둔다
+    parallel-sections: 2
+  heavy-cache:            # heavy 챕터 캐시. 성공한 챕터만, 열쇠는 light와 같다
+    ttl: 10m
+    max-size: 1000
   light-cache:            # light 코멘트 캐시 (모놀리식 app.cache와 같은 10분). 열쇠는 유저 + stats의 updated_at
     ttl: 10m
     max-size: 1000
