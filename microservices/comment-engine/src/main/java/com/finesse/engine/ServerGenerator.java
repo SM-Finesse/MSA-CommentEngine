@@ -164,13 +164,20 @@ public class ServerGenerator {
         return Outcome.fail(last);
     }
 
-    /** 라운드로빈. 제외 중인 서버는 건너뛴다. 전부 제외면 null */
+    /**
+     * 라운드로빈. 제외 중인 서버는 건너뛴다. 전부 제외면 null.
+     * <p>
+     * 차례 번호는 한 번만 받고 거기서부터 한 바퀴를 본다. 서버를 볼 때마다 번호를 새로 받으면, 동시에 고르는 다른 요청이
+     * 사이에 번호를 가져가서 제외된 서버만 거듭 보게 되고, 살아 있는 서버가 있는데도 "전부 제외"로 끝난다
+     * (11/16 12번에서 발견: 2대 중 1대가 꺼져 있을 때 섹션 하나가 이유 없이 실패).
+     */
     private String pick(DomainPack pack) {
         List<String> servers = pack.servers();
         AtomicInteger c = cursor.computeIfAbsent(pack.id(), k -> new AtomicInteger());
         Instant now = Instant.now();
+        int start = c.getAndIncrement();
         for (int i = 0; i < servers.size(); i++) {
-            String s = servers.get(Math.floorMod(c.getAndIncrement(), servers.size()));
+            String s = servers.get(Math.floorMod(start + i, servers.size()));
             Instant until = excludedUntil.get(s);
             if (until == null || now.isAfter(until)) {
                 return s;
