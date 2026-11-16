@@ -68,12 +68,17 @@ services:
   # 화면. 운영 중인 Finesse 프론트 이미지를 그대로 쓴다 (SM-Finesse/Finesse 의 frontend, 코드 변경 없음).
   # 이 이미지의 Nginx는 /api/** 를 BACKEND_UPSTREAM 으로 넘긴다 — 모놀리식 backend 대신 본체의 gateway를 가리키게 한다.
   # heavy(SSE)용 설정(버퍼링 끔, 읽기 300초)은 이미지의 Nginx 설정에 이미 들어 있다
+  # Nginx 설정은 chips/tetris/frontend/ 의 것으로 바꿔 꽂는다 (이미지 설정 + 두 가지):
+  #   /engine/ → 서비스 선택 화면(select-screen), 푸터에 CommentEngine 로고(engine-logo.js, 누르면 /engine/)
   frontend:
     image: pdh20020317/finesse-frontend:${TETRIS_FRONTEND_TAG:-latest}
     mem_limit: 128m
     environment:
       - BACKEND_UPSTREAM=http://gateway:8080
       - TZ=Asia/Seoul
+    volumes:
+      - ./chips/tetris/frontend/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./chips/tetris/frontend/engine-logo.js:/usr/share/nginx/html/engine-logo.js:ro
     ports:
       - "${TETRIS_FRONTEND_PORT:-8088}:80"
     healthcheck:
@@ -85,6 +90,8 @@ services:
     depends_on:
       gateway:
         condition: service_healthy   # Nginx는 시작할 때 gateway 이름을 찾는다. gateway가 먼저 떠 있어야 한다
+      select-screen:
+        condition: service_healthy   # /engine/ 도 마찬가지로 시작할 때 select-screen 이름을 찾는다
 
   # 시연용 작은 생성 서버. 이 칩의 llm-server 자리 (C안: 칩마다 생성 서버 하나)
   # 실제 llm-server를 쓸 때도 떠 있지만 아무도 부르지 않는다

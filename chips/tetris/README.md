@@ -22,13 +22,22 @@ TETR.IO 전적을 분석해 코멘트를 만드는 칩입니다. 테트리스에
 
 띄운 뒤 http://localhost:8088 을 엽니다.
 
+MSA에서만 더한 것 두 가지는 이미지가 아니라 `frontend/` 폴더의 Nginx 설정으로 붙입니다 (이미지 코드는 그대로).
+
+| 파일 | 하는 일 |
+|---|---|
+| `frontend/default.conf.template` | 이미지의 Nginx 설정 + `/engine/`을 서비스 선택 화면(select-screen)으로 넘김 + 화면에 `engine-logo.js`를 끼워 넣음 |
+| `frontend/engine-logo.js` | 푸터의 v0.1 오른쪽에 CommentEngine 로고. 누르면 `/engine/`(서비스 선택 화면)으로 감 |
+
+그래서 칩 화면 주소(예: msa.finesse-lab.com) 아래 `/engine/`에서 선택 화면이 열리고, 따로 도메인을 정하지 않아도 로고가 동작합니다. 이미지의 Nginx 설정이 바뀌면 `default.conf.template`도 맞춰 줍니다.
+
 ## 생성 서버
 
 기본은 시연용 `small-gen`(9200)입니다. 실제 llm-server(11·13번 PC)로 바꾸려면 레포 루트 `.env`에서 `TETRIS_GEN_SERVERS` 줄의 주석을 풉니다. llm-server 코드는 바꾸지 않습니다.
 
 ## 12번에서 실제 llm-server로 돌려 보기
 
-운영 모놀리식(80 포트)은 건드리지 않고 옆에 띄웁니다. 쓰는 포트는 8080(gateway), 8088(화면), 9411(추적)입니다. 레포 루트에서 순서대로 실행합니다.
+운영 모놀리식(80 포트)은 건드리지 않고 옆에 띄웁니다. 쓰는 포트는 8080(gateway), 8088(화면), 8090(서비스 선택 화면), 9411(추적)입니다. 레포 루트에서 순서대로 실행합니다.
 
 ```bash
 ./gradlew build -x test
