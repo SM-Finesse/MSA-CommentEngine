@@ -136,6 +136,10 @@ jobs:
           curl -sS -N --max-time 30 -o /tmp/front-heavy.txt 'http://localhost:8088/api/v1/comment/a?scope=heavy'
           grep -q '^event:start' /tmp/front-heavy.txt
           grep -q '^event:error' /tmp/front-heavy.txt
+          echo "== 서비스 선택 화면(select-screen): 첫 화면과 칩 목록 설정"
+          curl -sS -f -o /tmp/select.html http://localhost:8090/
+          grep -q 'id="chips"' /tmp/select.html
+          curl -sS -f http://localhost:8090/config.json | grep -q '"chips"'
           echo "== 규칙 밖 경로는 404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/nope)" = "404"
 
