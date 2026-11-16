@@ -142,6 +142,7 @@ jobs:
           curl -sS -f http://localhost:8090/config.json | grep -q '"chips"'
           echo "== 칩 화면 → 서비스 선택 화면: 푸터 로고 스크립트와 /engine/"
           curl -sS -f http://localhost:8088/ | grep -q 'src="/engine-logo.js"'
+          curl -sS -f http://localhost:8088/ | grep -q 'window.CE_ENGINE_HOME="http://{host}:8090"'
           curl -sS -f -o /dev/null http://localhost:8088/engine-logo.js
           curl -sS -f http://localhost:8088/engine/ | grep -q 'id="chips"'
           echo "== 규칙 밖 경로는 404"

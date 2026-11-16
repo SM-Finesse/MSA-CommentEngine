@@ -97,7 +97,7 @@ curl.exe -s -H "Content-Type: application/json" http://localhost:8092/api/v1/com
 
 띄운 뒤 브라우저에서 http://localhost:8090 을 열면 엔진 첫 화면(서비스 선택)이 나오고, Finesse를 고르면 칩 화면으로 넘어갑니다. http://localhost:8088 을 바로 열면 운영 사이트와 같은 화면이 새 구조 위에서 돕니다 (화면 → gateway → 칩).
 
-서비스 선택 화면의 칩 목록·주소는 `commentengine-select/config.json`에서 바꿉니다 (자세한 건 [commentengine-select/README.md](commentengine-select/README.md)). 지금 Finesse 주소는 `https://msa.finesse-lab.com`이라, 학교 안에서 터널 없이 시연할 때는 `http://localhost:8088`로 바꾸면 됩니다.
+서비스 선택 화면의 칩 목록·주소는 `commentengine-select/config.json`에서 바꿉니다 (자세한 건 [commentengine-select/README.md](commentengine-select/README.md)). 지금 Finesse 주소는 `http://{host}:8088`이라 접속한 IP를 그대로 따라갑니다 (12번에서 열면 localhost, 실습실 다른 PC에서 열면 192.168.0.112). 칩 화면 푸터의 CommentEngine 로고도 `.env`의 `TETRIS_ENGINE_HOME_URL`(`http://{host}:8090`)로 같은 방식입니다. 학교망 밖(노트북 등)에서 터널로 볼 때는 둘 다 `https://msa.finesse-lab.com`, `/engine/`으로 되돌립니다.
 
 `docker-compose.yml`에는 본체만 있습니다. 칩의 서비스는 칩 폴더의 `compose.yml`에 있고, 루트의 `.env`(`COMPOSE_FILE`)가 둘을 겹쳐 줍니다. 그래서 명령은 예전과 같습니다.
 

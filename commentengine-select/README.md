@@ -21,7 +21,7 @@
   "question": "어느 서비스를 사용하시겠습니까?",
   "chips": [
     { "id": "finesse", "name": "Finesse", "description": "테트리스 플레이 분석 · 코멘트",
-      "url": "https://msa.finesse-lab.com", "enabled": true, "art": "blocks" },
+      "url": "http://{host}:8088", "enabled": true, "art": "blocks" },
     { "id": "next", "name": "준비 중", "url": "", "enabled": false, "art": "soon" }
   ],
   "emptySlots": 2
@@ -33,7 +33,7 @@
 | `siteName` | 좌상단·탭 제목에 표시 |
 | `question` | 안내 문구 |
 | `chips[].name` / `description` | 카드 이름 / 아래 캡션 설명 |
-| `chips[].url` | 이동할 주소. 도메인이 정해지면 `https://finesse.<엔진 도메인>`으로 교체 |
+| `chips[].url` | 이동할 주소. `{host}`는 지금 접속한 주소로 바뀜 (12번에선 `localhost`, 실습실 다른 PC에선 `192.168.0.112`). 터널 주소로 보내려면 `https://msa.finesse-lab.com` |
 | `chips[].enabled` | `false`이거나 `url`이 비면 "준비 중" 비활성 카드 |
 | `chips[].art` | `blocks`(블록 그림), `soon`(준비 중 무늬), 생략 시 이름 첫 글자 + `color` 배경 |
 | `chips[].image` | (선택) 카드 이미지 경로. 지정하면 `art`보다 우선 |

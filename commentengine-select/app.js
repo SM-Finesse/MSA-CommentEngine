@@ -176,7 +176,8 @@
   function open(i) {
     var chip = chips[i];
     if (!chip || chip.enabled === false || !chip.url) return;
-    window.location.href = chip.url;
+    // {host} 는 지금 접속한 주소로 바꾼다 (예: http://{host}:8088 → http://192.168.0.112:8088)
+    window.location.href = String(chip.url).replace(/\{host\}/g, location.hostname);
   }
 
   function showError(msg) {
