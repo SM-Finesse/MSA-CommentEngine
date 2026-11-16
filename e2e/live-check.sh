@@ -5,7 +5,9 @@
 #   2. light: 같은 유저, tetris 칩의 생성 서버(small-gen)가 문장을 만든다
 #   3. 추적:   light 요청 하나가 gateway → finesse-api → tetris-analytics · comment-engine 으로 한 추적에 이어지는지
 #              (finesse-api는 light 캐시를 다른 스레드에서 만들기 때문에 추적 문맥을 넘겨야 이어진다)
-#   4. 대체 문장: small-gen을 멈추고 light를 다시 부르면 팩의 대체 문장(phrases)이 나온다
+#   4. heavy: 같은 유저의 SSE 스트림. start → chapter 8건 → done, 생성 서버(small-gen)가 각주를 만든다
+#   5. 대체 문장: small-gen을 멈추고 light를 다시 부르면 팩의 대체 문장(phrases)이 나온다.
+#              heavy는 대체 문장이 없어 챕터가 failed로 온다 (상대가 없을 때의 라이벌 고정 문구만 ok)
 #
 # 본체가 docker compose로 떠 있는 상태에서 실행한다:  bash e2e/live-check.sh <TETR.IO 유저명>
 # 실제 TETR.IO를 부른다 (유저 1명에 5번 안팎). 결과는 GITHUB_STEP_SUMMARY가 있으면 거기에도 표로 남긴다.
@@ -76,7 +78,63 @@ PY
 echo "$TRACE"
 case "$TRACE" in OK*) ;; *) fail "gateway → finesse-api → tetris-analytics · comment-engine 이 한 추적에 없음" ;; esac
 
-echo "== 4. small-gen을 멈추고 대체 문장 (finesse-api를 다시 띄워 light 캐시를 비움)"
+# SSE 본문 파일을 읽어 요약한다. 인자: 파일, 기대(all-ok | gen-down)
+heavy_summary() {
+  python3 - "$1" "$2" <<'PY'
+import json, sys
+body = open(sys.argv[1], encoding="utf-8").read()
+expect = sys.argv[2]
+events = []
+for block in body.split("\n\n"):
+    name, data = None, ""
+    for line in block.split("\n"):
+        if line.startswith("event:"):
+            name = line[6:].strip()
+        elif line.startswith("data:"):
+            data += line[5:].strip()
+    if name:
+        events.append((name, json.loads(data)))
+names = [n for n, _ in events]
+chapters = [d for n, d in events if n == "chapter"]
+print("이벤트: " + " ".join(f"{n}×{names.count(n)}" for n in dict.fromkeys(names)))
+for c in chapters:
+    print(f"  {c.get('chapter_id')}: {c.get('status')} {c.get('footnote') or ''}")
+done = events[-1][1] if events and events[-1][0] == "done" else None
+print("done: " + json.dumps(done, ensure_ascii=False))
+bad = []
+if not names or names[0] != "start":
+    bad.append("첫 이벤트가 start가 아님")
+if done is None:
+    bad.append("마지막 이벤트가 done이 아님")
+if len(chapters) != 8 or len({c.get("chapter_id") for c in chapters}) != 8:
+    bad.append(f"chapter가 정확히 8건이 아님 ({len(chapters)}건)")
+ok = [c for c in chapters if c.get("status") == "ok"]
+cold = bool(chapters) and all(c.get("status") == "failed" and c.get("attempt_count") == 0 for c in chapters)
+if expect == "all-ok" and not cold:
+    if len(ok) != 8:
+        bad.append(f"ok 챕터가 8개가 아님 ({len(ok)}개)")
+    if not any("small-gen:9200" in (c.get("footnote") or "") for c in ok):
+        bad.append("small-gen 각주가 없음 (생성 서버 경로를 타지 않았음)")
+if expect == "gen-down":
+    if any("small-gen" in (c.get("footnote") or "") for c in chapters):
+        bad.append("small-gen을 멈췄는데 small-gen 각주가 나옴")
+    if any(c.get("status") == "ok" and c.get("chapter_id") != "rivals" for c in chapters):
+        bad.append("생성 서버가 없는데 ok인 챕터가 있음")
+if cold:
+    print("(콜드스타트 — 엔진을 부르지 않고 8챕터 모두 failed)")
+for b in bad:
+    print("BAD " + b)
+PY
+}
+
+echo "== 4. heavy SSE (생성 서버 small-gen)"
+read -r code t < <(get "/api/v1/comment/$U?scope=heavy" /tmp/heavy1.txt)
+echo "HTTP $code (${t}s)"
+[ "$code" = 200 ] || fail "heavy가 200이 아님: $(head -c 300 /tmp/heavy1.txt)"
+heavy_summary /tmp/heavy1.txt all-ok | tee /tmp/heavy1-summary.txt
+if grep -q '^BAD ' /tmp/heavy1-summary.txt; then fail "heavy 스트림이 기대와 다름"; fi
+
+echo "== 5. small-gen을 멈추고 대체 문장 (finesse-api를 다시 띄워 light · heavy 캐시를 비움)"
 docker compose stop small-gen >/dev/null 2>&1
 docker compose restart finesse-api >/dev/null 2>&1
 docker compose up -d --no-deps --wait --wait-timeout 120 finesse-api >/dev/null 2>&1 || fail "finesse-api가 다시 뜨지 않음"
@@ -92,6 +150,12 @@ for h in j.get("highlights") or []:
     print(f"  {h.get('stat')}: {h.get('sentence')}")
 PY
 if grep -q 'small-gen' /tmp/light2.json; then fail "small-gen을 멈췄는데 small-gen 문장이 나옴"; fi
+
+read -r code t < <(get "/api/v1/comment/$U?scope=heavy" /tmp/heavy2.txt)
+echo "heavy: HTTP $code (${t}s)"
+[ "$code" = 200 ] || fail "생성 서버가 없을 때 heavy가 200이 아님: $(head -c 300 /tmp/heavy2.txt)"
+heavy_summary /tmp/heavy2.txt gen-down | tee /tmp/heavy2-summary.txt
+if grep -q '^BAD ' /tmp/heavy2-summary.txt; then fail "생성 서버가 없을 때 heavy 스트림이 기대와 다름"; fi
 docker compose start small-gen >/dev/null 2>&1
 
 {
@@ -103,8 +167,10 @@ docker compose start small-gen >/dev/null 2>&1
   echo '```'; cat /tmp/light1.txt; echo '```'
   echo "### 3. 추적"
   echo '```'; echo "$TRACE"; echo '```'
-  echo "### 4. small-gen을 멈췄을 때 (팩 대체 문장)"
-  echo '```'; cat /tmp/light2.txt; echo '```'
+  echo "### 4. heavy SSE (생성 서버 small-gen)"
+  echo '```'; cat /tmp/heavy1-summary.txt; echo '```'
+  echo "### 5. small-gen을 멈췄을 때 (light는 팩 대체 문장, heavy는 챕터 failed)"
+  echo '```'; cat /tmp/light2.txt; cat /tmp/heavy2-summary.txt; echo '```'
 } >> "$SUMMARY"
 
 if [ "$FAILED" = 0 ]; then echo "== 통과"; else echo "== 실패한 확인이 있음"; fi

@@ -1,5 +1,5 @@
 # 같은 TETR.IO 데이터로 모놀리식 backend와 MSA(gateway 경유)의 응답을 비교한다
-#   GET /api/v1/stats/{username}, GET /api/v1/comment/{username}?scope=light
+#   GET /api/v1/stats/{username}, GET /api/v1/comment/{username}?scope=light, ?scope=heavy
 #
 # 실제 TETR.IO를 부르므로 PR마다 돌리지 않는다. 손으로 돌리거나(Actions 탭 → compare-monolith → Run workflow),
 # 비교 도구 자체를 고친 PR에서만 돈다.
@@ -9,6 +9,7 @@
 #   3. 유저마다 모놀리식을 먼저 부르고(실제 TETR.IO, 프록시가 기억) MSA를 나중에 부른다(프록시가 재생)
 #   4. updated_at(계산한 시각)만 빼고 두 응답이 같은지 본다 (e2e/compare-stats.py). 결과는 작업 요약에 표로
 #   5. light: LLM 서버가 없어 양쪽 다 대체 문장. 하이라이트 지표·순서와 지표별 문장(비교 표현을 뗀 것)을 본다
+#   6. heavy(SSE): LLM 서버가 없어 양쪽 다 챕터가 failed. 이벤트 순서, 챕터별 status · footnote, done, error 이벤트를 본다
 name: compare-monolith
 
 on:

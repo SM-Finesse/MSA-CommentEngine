@@ -119,6 +119,14 @@ jobs:
           code=$(curl -s -o /tmp/light.txt -w '%{http_code}' 'http://localhost:8080/api/v1/comment/abc?scope=nope'); cat /tmp/light.txt; echo " [HTTP $code]"
           test "$code" = "400"
           grep -q 'scope는 light 또는 heavy만 허용됩니다: nope' /tmp/light.txt
+          echo "== finesse-api 경유 heavy: SSE가 gateway를 지나는지 (틀린 유저명이라 TETR.IO는 부르지 않음. start → error)"
+          curl -sS -N --max-time 30 -D /tmp/heavy.headers -o /tmp/heavy.txt 'http://localhost:8080/api/v1/comment/a?scope=heavy'
+          cat /tmp/heavy.headers /tmp/heavy.txt
+          grep -qi '^content-type: text/event-stream' /tmp/heavy.headers
+          grep -q '^event:start' /tmp/heavy.txt
+          grep -q '"total_chapters":8' /tmp/heavy.txt
+          grep -q '^event:error' /tmp/heavy.txt
+          grep -q '"error_code":"INVALID_USERNAME"' /tmp/heavy.txt
           echo "== 규칙 밖 경로는 404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/nope)" = "404"
 

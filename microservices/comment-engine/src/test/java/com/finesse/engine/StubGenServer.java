@@ -22,6 +22,9 @@ final class StubGenServer implements AutoCloseable {
 
     final List<Received> received = new CopyOnWriteArrayList<>();
 
+    /** 0이 아니면 섹션 경로가 이 상태 코드로 답한다 (생성 서버가 에러로 답하는 상황) */
+    volatile int sectionStatus = 0;
+
     private final JsonMapper mapper = JsonMapper.builder().build();
     private final HttpServer server;
 
@@ -38,6 +41,11 @@ final class StubGenServer implements AutoCloseable {
         });
         server.createContext("/v1/comment/heavy-chapter", ex -> {
             JsonNode req = read(ex, "/v1/comment/heavy-chapter");
+            if (sectionStatus != 0) {
+                ex.sendResponseHeaders(sectionStatus, -1);
+                ex.close();
+                return;
+            }
             reply(ex, "{\"chapter_id\":\"" + req.at("/chapter_id").asString()
                     + "\",\"footnote\":\"[stub] 섹션 문장\",\"fallback\":true}");
         });
