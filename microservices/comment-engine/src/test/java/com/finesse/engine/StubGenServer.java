@@ -22,6 +22,12 @@ final class StubGenServer implements AutoCloseable {
 
     final List<Received> received = new CopyOnWriteArrayList<>();
 
+    /** 0보다 크면 요청마다 이만큼 걸린다 (생성 서버가 문장을 만드는 시간) */
+    volatile int delayMs = 0;
+    /** 동시에 처리 중이던 요청 수의 최댓값 — 엔진이 서버별로 줄을 세우는지 볼 때 쓴다 */
+    final java.util.concurrent.atomic.AtomicInteger maxInFlight = new java.util.concurrent.atomic.AtomicInteger();
+    private final java.util.concurrent.atomic.AtomicInteger inFlight = new java.util.concurrent.atomic.AtomicInteger();
+
     /** 0이 아니면 섹션 경로가 이 상태 코드로 답한다 (생성 서버가 에러로 답하는 상황) */
     volatile int sectionStatus = 0;
 
@@ -49,6 +55,7 @@ final class StubGenServer implements AutoCloseable {
             reply(ex, "{\"chapter_id\":\"" + req.at("/chapter_id").asString()
                     + "\",\"footnote\":\"[stub] 섹션 문장\",\"fallback\":true}");
         });
+        server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool()); // 동시에 오면 동시에 받는다
         server.start();
     }
 
@@ -64,6 +71,17 @@ final class StubGenServer implements AutoCloseable {
     private JsonNode read(HttpExchange ex, String path) throws IOException {
         String body = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         received.add(new Received(path, body));
+        int now = inFlight.incrementAndGet();
+        maxInFlight.accumulateAndGet(now, Math::max);
+        try {
+            if (delayMs > 0) {
+                Thread.sleep(delayMs);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            inFlight.decrementAndGet();
+        }
         return mapper.readTree(body);
     }
 
