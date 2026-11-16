@@ -9,6 +9,7 @@
 #   TETRIS_GEN_SERVERS    이 칩의 생성 서버 주소 (기본: 시연용 small-gen)
 #   TETRIS_FRONTEND_PORT  화면을 여는 포트 (기본 8088)
 #   TETRIS_FRONTEND_TAG   화면 이미지 태그 (기본 latest)
+#   TETRIS_ENGINE_HOME_URL 화면 푸터의 CommentEngine 로고가 돌아갈 서비스 선택 화면 주소 (비우면 로고 안 보임)
 #
 # 이 칩을 뽑으려면: .env 의 COMPOSE_FILE 에서 이 파일을 빼고, chips/tetris 폴더를 치운다. 본체 파일은 그대로다.
 
@@ -75,6 +76,7 @@ services:
     mem_limit: 128m
     environment:
       - BACKEND_UPSTREAM=http://gateway:8080
+      - ENGINE_HOME_URL=${TETRIS_ENGINE_HOME_URL:-}   # 푸터 로고 → 서비스 선택 화면
       - TZ=Asia/Seoul
     volumes:
       - ./chips/tetris/frontend/default.conf.template:/etc/nginx/templates/default.conf.template:ro
