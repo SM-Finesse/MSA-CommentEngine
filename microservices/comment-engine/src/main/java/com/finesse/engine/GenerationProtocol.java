@@ -40,7 +40,7 @@ public class GenerationProtocol {
 
     public Outcome<GenText> sentence(DomainPack pack, MetricItem item, Instant deadline) {
         Outcome<SentenceResponse> o = server.call(pack, SENTENCE_PATH, toServer(item), SentenceResponse.class,
-                r -> item.metric().equals(r.stat()) && notBlank(r.sentence()), deadline);
+                r -> item.metric().equals(r.stat()) && notBlank(r.sentence()), deadline, ServerGenerator.PRIORITY_LIGHT);
         return o.ok() ? Outcome.ok(new GenText(o.value().sentence(), Boolean.TRUE.equals(o.value().fallback())))
                       : Outcome.fail(o.failure());
     }
@@ -48,14 +48,14 @@ public class GenerationProtocol {
     public Outcome<GenText> summary(DomainPack pack, List<MetricItem> items, Instant deadline) {
         SummaryRequest body = new SummaryRequest(items.stream().map(GenerationProtocol::toServer).toList());
         Outcome<SummaryResponse> o = server.call(pack, SUMMARY_PATH, body, SummaryResponse.class,
-                r -> notBlank(r.lightSummary()), deadline);
+                r -> notBlank(r.lightSummary()), deadline, ServerGenerator.PRIORITY_LIGHT);
         return o.ok() ? Outcome.ok(new GenText(o.value().lightSummary(), Boolean.TRUE.equals(o.value().fallback())))
                       : Outcome.fail(o.failure());
     }
 
     public Outcome<GenText> section(DomainPack pack, String section, Map<String, Object> data, Instant deadline) {
         Outcome<ChapterResponse> o = server.call(pack, SECTION_PATH, new ChapterRequest(section, data), ChapterResponse.class,
-                r -> section.equals(r.chapterId()) && notBlank(r.footnote()), deadline);
+                r -> section.equals(r.chapterId()) && notBlank(r.footnote()), deadline, ServerGenerator.PRIORITY_SECTION);
         return o.ok() ? Outcome.ok(new GenText(o.value().footnote(), Boolean.TRUE.equals(o.value().fallback())))
                       : Outcome.fail(o.failure());
     }

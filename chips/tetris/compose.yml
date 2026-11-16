@@ -2,8 +2,13 @@
 # 레포 루트의 .env (COMPOSE_FILE)에 이 파일이 적혀 있어서, 루트에서 `docker compose up -d --build` 하면 같이 뜬다.
 # 경로는 레포 루트 기준이다 (겹쳐 쓰는 compose 파일의 경로는 첫 파일의 폴더를 기준으로 한다).
 #
-#   gateway /api/** → finesse-api ─┬─ comment-engine (본체) → small-gen (이 칩의 생성 서버 자리)
-#                                  └─ tetris-analytics → TETR.IO
+#   화면(frontend) ─▶ gateway /api/** → finesse-api ─┬─ comment-engine (본체) → 이 칩의 생성 서버
+#                                                     └─ tetris-analytics → TETR.IO
+#
+# 띄우는 곳마다 다른 값은 레포 루트의 .env 에서 바꾼다 (이 파일은 고치지 않는다):
+#   TETRIS_GEN_SERVERS    이 칩의 생성 서버 주소 (기본: 시연용 small-gen)
+#   TETRIS_FRONTEND_PORT  화면을 여는 포트 (기본 8088)
+#   TETRIS_FRONTEND_TAG   화면 이미지 태그 (기본 latest)
 #
 # 이 칩을 뽑으려면: .env 의 COMPOSE_FILE 에서 이 파일을 빼고, chips/tetris 폴더를 치운다. 본체 파일은 그대로다.
 
@@ -60,7 +65,29 @@ services:
       zipkin:
         condition: service_started
 
+  # 화면. 운영 중인 Finesse 프론트 이미지를 그대로 쓴다 (SM-Finesse/Finesse 의 frontend, 코드 변경 없음).
+  # 이 이미지의 Nginx는 /api/** 를 BACKEND_UPSTREAM 으로 넘긴다 — 모놀리식 backend 대신 본체의 gateway를 가리키게 한다.
+  # heavy(SSE)용 설정(버퍼링 끔, 읽기 300초)은 이미지의 Nginx 설정에 이미 들어 있다
+  frontend:
+    image: pdh20020317/finesse-frontend:${TETRIS_FRONTEND_TAG:-latest}
+    mem_limit: 128m
+    environment:
+      - BACKEND_UPSTREAM=http://gateway:8080
+      - TZ=Asia/Seoul
+    ports:
+      - "${TETRIS_FRONTEND_PORT:-8088}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    depends_on:
+      gateway:
+        condition: service_healthy   # Nginx는 시작할 때 gateway 이름을 찾는다. gateway가 먼저 떠 있어야 한다
+
   # 시연용 작은 생성 서버. 이 칩의 llm-server 자리 (C안: 칩마다 생성 서버 하나)
+  # 실제 llm-server를 쓸 때도 떠 있지만 아무도 부르지 않는다
   small-gen:
     image: eclipse-temurin:25-jdk
     mem_limit: 256m
@@ -69,7 +96,7 @@ services:
       - ./small-gen:/app:ro
 
   # 본체 엔진에 이 칩의 생성 서버 주소를 알려 준다 (본체 compose의 comment-engine에 환경변수 한 줄이 더해진다)
-  # 실제 llm-server로 바꾸려면 이 줄만 고친다 (쉼표로 여러 대)
+  # 실제 llm-server로 바꾸려면 .env 의 TETRIS_GEN_SERVERS 를 고친다 (쉼표로 여러 대)
   comment-engine:
     environment:
-      - FINESSE_PACK_TETRIS_SERVERS=http://small-gen:9200
+      - FINESSE_PACK_TETRIS_SERVERS=${TETRIS_GEN_SERVERS:-http://small-gen:9200}

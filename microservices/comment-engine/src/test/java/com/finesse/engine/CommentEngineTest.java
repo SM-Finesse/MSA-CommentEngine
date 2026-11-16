@@ -127,6 +127,39 @@ class CommentEngineTest {
         }
     }
 
+    /**
+     * 같은 생성 서버로 가는 요청은 엔진이 줄을 세워 한 번에 하나씩 보낸다 (engine.server-concurrency 1).
+     * 줄이 생겼을 때는 light가 section보다 먼저 나간다 — 지금 서비스(모놀리식 LlmClient)의 서버별 대기열과 같다.
+     */
+    @Test
+    void 같은_생성서버에는_한_번에_하나씩_보내고_light가_먼저() throws Exception {
+        GEN.delayMs = 300;
+        GEN.maxInFlight.set(0);
+        try (var pool = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var calls = new java.util.ArrayList<java.util.concurrent.Future<HttpResponse<String>>>();
+            for (String section : java.util.List.of("tr_trend", "playstyle", "attack", "defense", "rivals")) {
+                calls.add(pool.submit(() -> Http.post(port, "/v1/comments/section",
+                        "{\"domain\":\"tetris\",\"section\":\"" + section + "\",\"data\":{},\"deadline_ms\":50000}")));
+            }
+            Thread.sleep(250); // section 5개가 먼저 줄을 선 뒤에 light를 보낸다
+            var light = pool.submit(() -> Http.post(port, "/v1/comments/light", """
+                    {"domain":"tetris","items":[{"metric":"delta_app","value":0.05,"zone":"high"}],"deadline_ms":35000}"""));
+
+            for (var call : calls) {
+                assertThat(call.get().statusCode()).isEqualTo(200);
+            }
+            assertThat(light.get().statusCode()).isEqualTo(200);
+        } finally {
+            GEN.delayMs = 0;
+        }
+
+        assertThat(GEN.maxInFlight.get()).as("생성 서버가 동시에 받은 요청 수").isEqualTo(1);
+        assertThat(GEN.received).hasSize(7); // section 5 + light의 문장 1 + 요약 1
+        // light는 section 5개가 줄을 선 뒤에 왔지만, 맨 뒤(6·7번째)가 아니라 남은 section들을 앞질러 나간다
+        var paths = GEN.received.stream().map(StubGenServer.Received::path).toList();
+        assertThat(paths.subList(5, 7)).as("받은 순서 " + paths).contains("/v1/comment/heavy-chapter");
+    }
+
     @Test
     void 꽂힌_팩_목록() throws Exception {
         JsonNode body = json(Http.get(port, "/v1/domains"), 200);

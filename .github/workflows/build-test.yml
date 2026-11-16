@@ -127,6 +127,15 @@ jobs:
           grep -q '"total_chapters":8' /tmp/heavy.txt
           grep -q '^event:error' /tmp/heavy.txt
           grep -q '"error_code":"INVALID_USERNAME"' /tmp/heavy.txt
+          echo "== 화면(frontend 컨테이너): 첫 화면과, 화면의 /api 가 gateway를 거쳐 칩으로 가는지"
+          curl -sS -f -o /tmp/index.html http://localhost:8088/
+          grep -qi '<div id="root"' /tmp/index.html
+          code=$(curl -s -o /tmp/front-stats.txt -w '%{http_code}' http://localhost:8088/api/v1/stats/a); cat /tmp/front-stats.txt; echo " [HTTP $code]"
+          test "$code" = "400"
+          grep -q '"error_code":"INVALID_USERNAME"' /tmp/front-stats.txt
+          curl -sS -N --max-time 30 -o /tmp/front-heavy.txt 'http://localhost:8088/api/v1/comment/a?scope=heavy'
+          grep -q '^event:start' /tmp/front-heavy.txt
+          grep -q '^event:error' /tmp/front-heavy.txt
           echo "== 규칙 밖 경로는 404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/nope)" = "404"
 

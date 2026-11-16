@@ -6,7 +6,7 @@
 
 작업 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 봐 주세요.
 
-> 프로토타입 단계입니다. 화면이 부르는 경로 셋(통계, light 코멘트, heavy 코멘트)을 모두 새 구조로 옮겼습니다. 생성 서버는 아직 시연용(small-gen)이고, 실제 llm-server 연결과 화면 전환은 F단계입니다.
+> 프로토타입 단계입니다. 화면이 부르는 경로 셋(통계, light 코멘트, heavy 코멘트)을 모두 새 구조로 옮겼습니다. 화면(운영 프론트 이미지)도 같이 뜹니다. 생성 서버는 기본이 시연용(small-gen)이고, 실제 llm-server로 바꾸는 것은 `.env` 한 줄입니다 ([chips/tetris/README.md](chips/tetris/README.md)).
 > 슬롯의 기준 문서는 「MSA 슬롯 구현 확정안」입니다 (레포에는 아직 없음).
 
 ## 무엇이 어디에 있나
@@ -24,6 +24,7 @@
 │       ├── GenerationRouter       mode = template / server 로 갈라짐
 │       ├── TemplateGenerator      phrases로 문장 조립 (template 모드 + 대체 문장)
 │       ├── ServerGenerator        라운드로빈 · 30초 제외 · 재시도 · 마감
+│       ├── ServerGate             생성 서버마다 한 번에 하나씩, light 먼저 (서버별 대기열)
 │       └── GenerationProtocol     ③ 어댑터. metric→stat, high→높음 같은 변환은 여기 한 곳
 ├── spring-cloud/gateway/                 ← 본체의 입구 (포트 8080)
 │   └── com/finesse/gateway/
@@ -48,7 +49,7 @@
 │   │   │       └── ApiErrorHandler       엔진 에러 코드 → 화면이 받는 코드
 │   │   ├── config/               이 칩 서비스의 설정 (finesse-api.yml, tetris-analytics.yml)
 │   │   ├── gateway.yml           gateway에 꽂는 경로(/api/**)와 헬스
-│   │   └── compose.yml           이 칩의 서비스 + 생성 서버 주소
+│   │   └── compose.yml           이 칩의 서비스(화면 포함) + 생성 서버 주소
 │   └── demo/
 │       └── pack/                 팩만 있는 칩. template 모드
 ├── small-gen/SmallGenServer.java         ← 작은 생성 서버 (③ 3개 경로만). 실제 llm-server 연결 전까지 tetris 칩이 씀
@@ -92,7 +93,9 @@ curl.exe -s -H "Content-Type: application/json" http://localhost:8092/api/v1/com
 
 ## docker compose로 한 번에 띄우기
 
-본체(gateway, comment-engine, zipkin)와 꽂힌 칩의 서비스(tetris 칩: finesse-api, tetris-analytics, small-gen)를 같이 띄웁니다. 밖으로 여는 포트는 gateway의 8080과 추적 화면(Zipkin)의 9411입니다.
+본체(gateway, comment-engine, zipkin)와 꽂힌 칩의 서비스(tetris 칩: frontend, finesse-api, tetris-analytics, small-gen)를 같이 띄웁니다. 밖으로 여는 포트는 gateway의 8080, 추적 화면(Zipkin)의 9411, tetris 칩 화면의 8088입니다.
+
+띄운 뒤 브라우저에서 http://localhost:8088 을 열면 운영 사이트와 같은 화면이 새 구조 위에서 돕니다 (화면 → gateway → 칩).
 
 `docker-compose.yml`에는 본체만 있습니다. 칩의 서비스는 칩 폴더의 `compose.yml`에 있고, 루트의 `.env`(`COMPOSE_FILE`)가 둘을 겹쳐 줍니다. 그래서 명령은 예전과 같습니다.
 
@@ -139,7 +142,7 @@ heavy가 모놀리식과 다른 점 (화면이 받는 이벤트 모양은 같음
 |---|---|---|
 | `attempt_count` | 챕터마다 있음 | 엔진을 거친 챕터에는 없음 (엔진이 다시 시도한 횟수를 알려 주지 않음. light와 같음) |
 | 전체 마감 | LLM 서버 대수를 보고 60초(2대 이상)·120초(1대) | 칩 설정 `app.endpoint.heavy-seconds` (기본 60). 생성 서버가 1대면 120으로 |
-| 한 번에 부르는 챕터 수 | LLM 서버마다 한 번에 하나 (서버별 대기열) | 칩 설정 `app.heavy.parallel-sections` (기본 2). 엔진에는 서버별 대기열이 없음 |
+| 한 번에 부르는 챕터 수 | LLM 서버마다 한 번에 하나 (서버별 대기열) | 엔진의 서버별 대기열이 같은 일을 함. 칩도 한 번에 엔진에 보내는 section 수를 묶음 (`app.heavy.parallel-sections`, 기본 2) — 엔진 응답을 기다리는 시간이 길어지지 않게 |
 | 틀린 유저명 | 스트림을 열기 전에 400 | 스트림을 연 뒤 `error` 이벤트 (`INVALID_USERNAME`). 유저명 검사가 tetris-analytics에 있어서 |
 
 추적 화면은 http://localhost:9411 입니다. gateway → finesse-api → comment-engine 요청이 한 줄로 이어져 보입니다.
@@ -229,10 +232,11 @@ docker compose restart comment-engine gateway
 | 모듈 | 시험 | 보는 것 |
 |---|---|---|
 | `api` | `Stage1Test` (7개) | DTO ↔ JSON 왕복과 snake_case, 입력 검증, 팩 리더(실제 팩 통과 · 고장 팩 6개 · 환경변수 덮어쓰기), 본체 코드와 본체 설정(`api`, `comment-engine`, `gateway`, `config-repo`)에 `delta_` · `tetr` · `chapter` · `챕터` · `finesse-api` 없음 |
-| `comment-engine` | `CommentEngineTest` (7개) | demo(template)와 tetris(server, 가짜 생성 서버)를 엔진 계약으로 호출, 팩 목록, 에러 코드, 생성 서버가 에러로 답하면 section은 502 |
+| `comment-engine` | `CommentEngineTest` (8개) | demo(template)와 tetris(server, 가짜 생성 서버)를 엔진 계약으로 호출, 팩 목록, 에러 코드, 생성 서버가 에러로 답하면 section은 502, 같은 생성 서버에는 한 번에 하나씩 보내고 light가 먼저 |
 | `comment-engine` | `GenServerDownTest` (5개) | 생성 서버가 전부 꺼지면 light는 대체 문장 200, section은 503, 다른 칩은 정상. tetris 칩이 하이라이트 후보 11개를 모두 받는지, 영역과 부호가 반대면 weak 문장 |
 | `comment-engine` | `TemplateGeneratorTest` (3개) | 대체 문장 7가지 상태(영역 × 부호, 0), weak 칸이 없는 팩은 normal 칸, 반올림한 값의 부호로 고름 |
 | `comment-engine` | `PackRegistryTest` (1개) | 잘못된 팩이 있으면 시작 실패 |
+| `comment-engine` | `ServerGateTest` (4개) | 생성 서버 한 대의 줄: 한 번에 하나, 우선순위 높은 것 먼저·같으면 온 순서, 마감까지 차례가 안 오면 돌아감, 자리 수 설정 |
 | `finesse-api` | `FinesseApiTest` (3개) | 가짜 엔진을 세우고 계약대로 부르는지, 응답 모양과 에러 코드 변환 |
 | `finesse-api` | `EngineResilienceTest` (4개) | 엔진 503은 바로 넘김(다시 안 부름), 엔진에 닿지 않으면 한 번만 다시, 회로 열림(엔진을 안 부름)과 닫힘 |
 | `finesse-api` | `LightCommentFlowTest` (9개) | 콜드스타트 문장, 엔진 계약으로 부르기(값은 화면의 원값), 캐시(같은 stats면 꺼냄, stats가 새로 계산되면 다시), 대체 문장·3개 미만은 캐시 안 함, 지표 고르기 규칙, 고른 지표가 없으면 엔진 안 부름, stats 에러 그대로, scope 검사 |
@@ -259,4 +263,4 @@ PR을 올리면 GitHub에서 같은 시험이 자동으로 돕니다 (`build-tes
 | 4 | 엔진은 503에 `Retry-After: 30`을 붙이는데, finesse-api가 그 시간만큼 기다렸다가 한 번 더 불러 light 마감 40초 중 30초를 기다렸음 | 해결: finesse-api는 엔진이 에러로 답하면 기다리지 않고 바로 화면에 넘김(Retry-After 30도 그대로). 다시 시도는 엔진에 닿지 않을 때만 1초 뒤 한 번 (Resilience4j) |
 | 5 | 엔진이 영역(high·low)만 보고 대체 문장을 골라, 영역은 high인데 값이 음수면 "뚜렷하게 앞섭니다(-0.03)"처럼 앞뒤가 맞지 않았음. 모놀리식은 10/26 A안대로 방향은 값의 부호, 강도는 영역 (7가지) | **슬롯 규격 변경(11/15, 박덕현 결정)**: 팩 `phrases`에 `weak_pos` · `weak_neg`를 선택 칸으로 추가. 영역과 부호가 반대면 weak 칸, 없으면 같은 부호의 normal 칸. 예전 팩은 그대로 통과. 확정안 4.3절(metrics.json)과 7.1절(문장 고르기) 반영 필요 |
 | 6 | 칩이 팩 폴더(`domain-packs/<id>/`)뿐이라, 칩의 서비스·설정·gateway 경로가 본체 쪽 폴더와 본체 설정(`config-repo/gateway.yml`)에 흩어져 있었음. "칩을 꽂는다"가 폴더 하나로 끝나지 않았음 | **칩 = `chips/<id>/` 폴더 하나 (11/16, 박덕현 결정)**. 팩은 `chips/<id>/pack/`으로 (② 팩 규격의 **위치**만 바뀜, 파일 내용·검사는 그대로). 칩의 gateway 경로·헬스는 칩이 `gateway.yml`로 들고 옴. 확정안 4장(팩 위치) 반영 필요 |
-| 7 | 모놀리식 `LlmClient`는 LLM 서버마다 요청을 한 번에 하나씩 보냈다 (서버별 대기열, light가 heavy보다 먼저). 엔진의 `ServerGenerator`에는 이 대기열이 없어 요청을 받는 대로 생성 서버에 동시에 보낸다 | heavy는 칩에서 한 번에 부르는 section 수를 묶어 둠 (`app.heavy.parallel-sections`). light와 heavy가 겹치거나 여러 사람이 같이 부를 때는 묶이지 않음. **실제 llm-server를 붙이기(F단계) 전에 엔진에 서버별 대기열을 넣을지 정해야 함** |
+| 7 | 모놀리식 `LlmClient`는 LLM 서버마다 요청을 한 번에 하나씩 보냈다 (서버별 대기열, light가 heavy보다 먼저). 엔진의 `ServerGenerator`에는 이 대기열이 없어 요청을 받는 대로 생성 서버에 동시에 보냈다 | 해결(11/16): 엔진에 서버별 대기열 `ServerGate`. 서버마다 한 번에 `engine.server-concurrency`개(기본 1), light가 section보다 먼저, 줄에서 기다린 시간도 마감에 들어감. 1회 호출 타임아웃은 실제로 보낸 때부터 셈. 확정안 7.2절 반영 필요 |
